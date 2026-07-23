@@ -45,7 +45,6 @@ const stats = [
 const actions = [
   { icon: '📝', label: 'Raise Complaint', to: '/resident/complaints/new', bg: 'var(--color-primary-100)' },
   { icon: '🔍', label: 'Browse Services', to: '/resident/services', bg: 'var(--color-secondary-100)' },
-  { icon: '🅿️', label: 'Parking', to: '/resident/parking', bg: 'var(--color-accent-100)' },
   { icon: '👨‍👩‍👧‍👦', label: 'My Family', to: '/resident/family', bg: 'var(--color-info-100)' },
 ]
 </script>

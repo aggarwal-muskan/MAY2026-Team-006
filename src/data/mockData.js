@@ -92,24 +92,8 @@ export const serviceCategories = [
   { id: 'cook', name: 'Cook', icon: '👨‍🍳', description: 'Home cooking and catering' },
 ]
 
-// ── Parking ──
-export const parkingSlots = [
-  { id: 'A-101', block: 'A', status: 'Occupied', resident: 'Priya Sharma', flat: 'A-101', vehicle: 'MH 01 AB 1234', type: 'Car' },
-  { id: 'A-102', block: 'A', status: 'Occupied', resident: 'Rahul Verma', flat: 'A-102', vehicle: 'MH 02 CD 5678', type: 'Car' },
-  { id: 'A-103', block: 'A', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'A-104', block: 'A', status: 'Occupied', resident: 'Arjun Mehta', flat: 'A-104', vehicle: 'DL 03 EF 9012', type: 'Car' },
-  { id: 'A-105', block: 'A', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'B-101', block: 'B', status: 'Occupied', resident: 'Suresh Kumar', flat: 'B-201', vehicle: 'KA 04 GH 3456', type: 'Car' },
-  { id: 'B-102', block: 'B', status: 'Occupied', resident: 'Meena Patel', flat: 'B-202', vehicle: 'MH 05 IJ 7890', type: 'Bike' },
-  { id: 'B-103', block: 'B', status: 'Reserved', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'B-104', block: 'B', status: 'Occupied', resident: 'Sneha Rao', flat: 'B-204', vehicle: 'TN 06 KL 1234', type: 'Car' },
-  { id: 'B-105', block: 'B', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'C-101', block: 'C', status: 'Occupied', resident: 'Deepa Nair', flat: 'C-301', vehicle: 'KL 07 MN 5678', type: 'Car' },
-  { id: 'C-102', block: 'C', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'C-103', block: 'C', status: 'Occupied', resident: 'Amit Joshi', flat: 'C-302', vehicle: 'GJ 08 OP 9012', type: 'Car' },
-  { id: 'C-104', block: 'C', status: 'Reserved', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'C-105', block: 'C', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-]
+
+
 
 // ── Family Members ──
 export const familyMembers = [
@@ -168,7 +152,6 @@ export const facilities = [
   { id: 5, name: 'Guest Room', icon: '🛏️', description: 'Guest accommodation for visitors' },
   { id: 6, name: 'Tennis Court', icon: '🎾', description: 'Professional tennis court with floodlights' },
   { id: 7, name: 'Garden', icon: '🌿', description: 'Beautiful landscaped gardens and walking paths' },
-  { id: 8, name: 'Parking', icon: '🅿️', description: 'Covered parking for cars and two-wheelers' },
 ]
 
 // ── Maintenance Bills ──
@@ -259,11 +242,7 @@ export const analyticsData = {
     'Guest Room': 5,
     'Tennis Court': 10,
   },
-  parkingUtilization: {
-    'Occupied': 9,
-    'Available': 4,
-    'Reserved': 2,
-  },
+
   monthlyRevenue: [
     { month: 'Jan', amount: 125000 },
     { month: 'Feb', amount: 130000 },
