@@ -1,7 +1,12 @@
 # Database Design for SocioNeed
 
 ## Overview
-SocioNeed uses a SQLite database because the project needs a lightweight, file-based relational store that is easy to run locally for the frontend and backend deliverables. The schema below is normalized around the main workflows in the system: notices and events, service directory and bookings, complaint management, and parking tracking.
+SocioNeed uses a SQLite database because the project needs a lightweight, file-based relational store that is easy to run locally for the frontend and backend deliverables. The schema below is normalized around the main workflows in the system: notices and events, service directory and bookings, complaint management, and visitor tracking.
+
+## Alignment Note (Class Diagram / ER Diagram)
+- The backend source of truth is `backend/app/models/entities.py` and `backend/config/schema.sql`.
+- The current implementation intentionally excludes the parking module and parking tables.
+- Class/ER diagrams used in documentation should reflect the same 14 entities listed below, with no parking entities.
 
 ## Design Goals
 - Keep the schema simple enough for a student project while still reflecting real society operations.
@@ -71,33 +76,22 @@ Stores progress updates and status changes for complaints.
 - Key fields: `id`, `complaint_id`, `updated_by_user_id`, `status`, `comment`, `updated_at`
 - Purpose: preserves complaint history.
 
-### 13. parking_spaces
-Stores all parking slots in the society.
-- Key fields: `id`, `society_id`, `space_number`, `space_type`, `current_status`, `assigned_unit_id`
-- Purpose: shows occupied, available, and reserved spaces.
-
-### 14. parking_allocations
-Stores permanent or temporary parking assignments for resident vehicles.
-- Key fields: `id`, `parking_space_id`, `unit_id`, `vehicle_number`, `allocated_by_user_id`, `allocation_status`, `allocated_at`, `released_at`
-- Purpose: keeps parking allocation transparent.
-
-### 15. visitor_entries
+### 13. visitor_entries
 Stores visitor vehicle records handled by security.
-- Key fields: `id`, `society_id`, `recorded_by_user_id`, `resident_user_id`, `visitor_name`, `vehicle_number`, `contact_number`, `entry_time`, `exit_time`, `parking_space_id`
-- Purpose: tracks visitor movement and parking.
+- Key fields: `id`, `society_id`, `recorded_by_user_id`, `resident_user_id`, `visitor_name`, `vehicle_number`, `contact_number`, `entry_time`, `exit_time`
+- Purpose: tracks visitor movement.
 
-### 16. provider_reviews
+### 14. provider_reviews
 Stores ratings and feedback submitted after bookings.
 - Key fields: `id`, `provider_id`, `resident_user_id`, `booking_id`, `rating`, `feedback`, `created_at`
 - Purpose: supports provider quality improvement.
 
 ## Relationship Summary
-- One society has many users, units, notices, events, complaints, and parking spaces.
+- One society has many users, units, notices, events, and complaints.
 - One unit can have one or more occupancy records over time.
 - One service category can have many providers.
 - One provider can have many availability slots and bookings.
 - One complaint can have many updates.
-- One parking space can be linked to one allocation at a time.
 - One booking can generate one review.
 
 ## ER Diagram
@@ -108,7 +102,6 @@ erDiagram
     SOCIETIES ||--o{ NOTICES : publishes
     SOCIETIES ||--o{ EVENTS : hosts
     SOCIETIES ||--o{ COMPLAINTS : receives
-    SOCIETIES ||--o{ PARKING_SPACES : provides
 
     USERS ||--o{ RESIDENT_OCCUPANCIES : occupies
     UNITS ||--o{ RESIDENT_OCCUPANCIES : assigned_to
@@ -126,9 +119,6 @@ erDiagram
     USERS ||--o{ COMPLAINT_UPDATES : writes
     COMPLAINTS ||--o{ COMPLAINT_UPDATES : history
 
-    UNITS ||--o{ PARKING_ALLOCATIONS : gets
-    PARKING_SPACES ||--o{ PARKING_ALLOCATIONS : assigned
-    USERS ||--o{ PARKING_ALLOCATIONS : allocates
     USERS ||--o{ VISITOR_ENTRIES : records
     USERS ||--o{ PROVIDER_REVIEWS : writes
     USERS ||--o{ SERVICE_BOOKINGS : makes

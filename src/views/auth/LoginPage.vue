@@ -41,7 +41,7 @@
           </div>
           <div class="form-row">
             <label class="checkbox-label"><input type="checkbox" v-model="remember" /> <span>Remember me</span></label>
-            <a href="#" class="forgot-link">Forgot Password?</a>
+            <a href="#" class="forgot-link" @click.prevent="handleForgotPassword">Forgot Password?</a>
           </div>
           <span v-if="errors.general" class="form-error form-error-general">{{ errors.general }}</span>
           <button type="submit" class="btn btn-primary btn-lg w-full" :disabled="isSubmitting">{{ isSubmitting ? 'Logging in...' : 'Login' }}</button>
@@ -92,8 +92,12 @@ function validateForm() {
   const trimmedEmail = email.value.trim()
   if (!trimmedEmail) {
     errors.email = 'Email is required.'
-  } else if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
-    errors.email = 'Enter a valid email address.'
+  } else {
+    const isEmail = /\S+@\S+\.\S+/.test(trimmedEmail)
+    const isPhone = /^\+?[0-9]{8,15}$/.test(trimmedEmail)
+    if (!isEmail && !isPhone) {
+      errors.email = 'Enter a valid email or mobile number.'
+    }
   }
 
   if (!password.value) {
@@ -118,6 +122,22 @@ async function handleLogin() {
     notify.error(errors.general)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function handleForgotPassword() {
+  const identifier = window.prompt('Enter your registered email or mobile number:')
+  if (!identifier) return
+
+  const phone = window.prompt('Optional: enter your registered phone for extra verification (or leave empty):', '') || ''
+  const newPassword = window.prompt('Enter your new password:')
+  if (!newPassword) return
+
+  try {
+    await authStore.forgotPassword(identifier, newPassword, phone)
+    notify.success('Password reset successful. Please login with your new password.')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Password reset failed. Please try again.')
   }
 }
 </script>

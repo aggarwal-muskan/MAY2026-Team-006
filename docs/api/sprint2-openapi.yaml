@@ -1,0 +1,387 @@
+openapi: 3.0.3
+info:
+  title: SocioNeed API - Sprint 2
+  version: 1.0.0
+  description: |
+    Sprint 2 APIs for transactional workflows: complaints lifecycle,
+    services, bookings, visitors, analytics, and reports.
+servers:
+  - url: http://127.0.0.1:5000
+security:
+  - bearerAuth: []
+tags:
+  - name: Complaints
+  - name: Service Categories
+  - name: Providers
+  - name: Slots
+  - name: Bookings
+  - name: Reviews
+  - name: Visitors
+  - name: Analytics
+  - name: Reports
+paths:
+  /api/complaints:
+    get:
+      tags: [Complaints]
+      summary: List complaints
+      x-user-stories: [US-014 Complaint listing and filtering]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Complaints]
+      summary: Create complaint
+      x-user-stories: [US-015 Raise complaint]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateComplaintRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /api/complaints/{complaint_id}:
+    parameters:
+      - $ref: '#/components/parameters/ComplaintId'
+    get:
+      tags: [Complaints]
+      summary: Complaint detail with updates
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Complaints]
+      summary: Update complaint
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    delete:
+      tags: [Complaints]
+      summary: Delete complaint (admin)
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/complaints/{complaint_id}/assign:
+    put:
+      tags: [Complaints]
+      summary: Assign complaint
+      parameters:
+        - $ref: '#/components/parameters/ComplaintId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/complaints/{complaint_id}/status:
+    put:
+      tags: [Complaints]
+      summary: Update complaint status
+      parameters:
+        - $ref: '#/components/parameters/ComplaintId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /api/complaints/{complaint_id}/updates:
+    post:
+      tags: [Complaints]
+      summary: Add complaint update comment
+      parameters:
+        - $ref: '#/components/parameters/ComplaintId'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /api/service-categories:
+    get:
+      tags: [Service Categories]
+      summary: List categories
+      x-user-stories: [US-016 Service category browsing]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Service Categories]
+      summary: Create category (admin)
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /api/providers:
+    get:
+      tags: [Providers]
+      summary: List providers
+      x-user-stories: [US-017 Browse providers]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Providers]
+      summary: Create provider profile
+      x-user-stories: [US-018 Provider onboarding]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProviderRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+  /api/providers/{provider_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Get provider profile
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Providers]
+      summary: Update provider profile
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/slots/{provider_id}:
+    get:
+      tags: [Slots]
+      summary: List provider slots
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/slots:
+    post:
+      tags: [Slots]
+      summary: Create slot
+      x-user-stories: [US-019 Provider availability]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSlotRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /api/bookings:
+    get:
+      tags: [Bookings]
+      summary: List bookings role-wise
+      x-user-stories: [US-020 Booking list]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Bookings]
+      summary: Create booking
+      x-user-stories: [US-021 Resident creates service booking]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBookingRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+  /api/bookings/{booking_id}:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    get:
+      tags: [Bookings]
+      summary: Get booking details
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    delete:
+      tags: [Bookings]
+      summary: Delete booking (admin)
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/bookings/{booking_id}/accept:
+    put:
+      tags: [Bookings]
+      summary: Provider accepts booking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/bookings/{booking_id}/decline:
+    put:
+      tags: [Bookings]
+      summary: Provider declines booking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/bookings/{booking_id}/complete:
+    put:
+      tags: [Bookings]
+      summary: Provider marks booking complete
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/reviews:
+    post:
+      tags: [Reviews]
+      summary: Create provider review
+      x-user-stories: [US-022 Rate service]
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '422': { $ref: '#/components/responses/UnprocessableError' }
+  /api/reviews/provider/{provider_id}:
+    get:
+      tags: [Reviews]
+      summary: Get provider reviews summary
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/visitors:
+    get:
+      tags: [Visitors]
+      summary: List visitors
+      x-user-stories: [US-024 Security visitor logs]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Visitors]
+      summary: Create visitor entry
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+  /api/visitors/{entry_id}/exit:
+    put:
+      tags: [Visitors]
+      summary: Mark visitor exit
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/analytics/dashboard/admin:
+    get:
+      tags: [Analytics]
+      summary: Admin dashboard stats
+      x-user-stories: [US-025 Dashboard insights]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/analytics/dashboard/resident:
+    get:
+      tags: [Analytics]
+      summary: Resident dashboard stats
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/reports/monthly:
+    get:
+      tags: [Reports]
+      summary: Monthly summary report
+      x-user-stories: [US-026 Reporting]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+  /api/reports/export:
+    post:
+      tags: [Reports]
+      summary: Export report link generation
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ComplaintId:
+      name: complaint_id
+      in: path
+      required: true
+      schema: { type: integer }
+    ProviderId:
+      name: provider_id
+      in: path
+      required: true
+      schema: { type: integer }
+    BookingId:
+      name: booking_id
+      in: path
+      required: true
+      schema: { type: integer }
+    EntryId:
+      name: entry_id
+      in: path
+      required: true
+      schema: { type: integer }
+  responses:
+    OkResponse:
+      description: Successful response
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiSuccessEnvelope' }
+    CreatedResponse:
+      description: Resource created
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiSuccessEnvelope' }
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiErrorEnvelope' }
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiErrorEnvelope' }
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiErrorEnvelope' }
+    NotFoundError:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiErrorEnvelope' }
+    ConflictError:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiErrorEnvelope' }
+    UnprocessableError:
+      description: Unprocessable request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiErrorEnvelope' }
+  schemas:
+    ApiSuccessEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string, example: Success }
+        data: {}
+    ApiErrorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string, example: Missing required fields: status }
+    CreateComplaintRequest:
+      type: object
+      required: [subject, description, category, priority]
+      properties:
+        subject: { type: string }
+        description: { type: string }
+        category: { type: string }
+        priority: { type: string }
+    CreateProviderRequest:
+      type: object
+      required: [category_id, business_name]
+      properties:
+        user_id: { type: integer }
+        category_id: { type: integer }
+        business_name: { type: string }
+        service_description: { type: string }
+    CreateSlotRequest:
+      type: object
+      required: [provider_id, slot_start, slot_end]
+      properties:
+        provider_id: { type: integer }
+        slot_start: { type: string, format: date-time }
+        slot_end: { type: string, format: date-time }
+        is_available: { type: boolean }
+    CreateBookingRequest:
+      type: object
+      required: [provider_id]
+      properties:
+        provider_id: { type: integer }
+        slot_id: { type: integer }
+        request_notes: { type: string }

@@ -32,7 +32,7 @@ export const complaints = [
   { id: 'C-003', title: 'Garbage not collected', category: 'Housekeeping', description: 'Garbage has not been collected from our floor for the last 3 days.', status: 'Resolved', date: '2024-05-15', resident: 'Anita Desai', flat: 'A-103', assignedTo: 'Housekeeping Team', priority: 'High' },
   { id: 'C-004', title: 'Intercom not working', category: 'Other', description: 'The intercom system in our flat is completely non-functional.', status: 'Resolved', date: '2024-05-10', resident: 'Suresh Kumar', flat: 'B-201', assignedTo: 'IT Support', priority: 'Low' },
   { id: 'C-005', title: 'Lift maintenance required', category: 'Electrical', description: 'Lift in Block C is making unusual noises and sometimes gets stuck.', status: 'In Progress', date: '2024-05-22', resident: 'Deepa Nair', flat: 'C-301', assignedTo: 'Elevator Service', priority: 'Critical' },
-  { id: 'C-006', title: 'Parking lot flooding', category: 'Plumbing', description: 'During rain, the basement parking gets flooded. Need drainage improvement.', status: 'Pending', date: '2024-05-19', resident: 'Vikram Singh', flat: 'B-203', assignedTo: null, priority: 'High' },
+  { id: 'C-006', title: 'Basement water logging', category: 'Plumbing', description: 'During rain, the basement area gets flooded. Need drainage improvement.', status: 'Pending', date: '2024-05-19', resident: 'Vikram Singh', flat: 'B-203', assignedTo: null, priority: 'High' },
   { id: 'C-007', title: 'Broken playground swing', category: 'Maintenance', description: 'One of the swings in the children playground is broken and unsafe.', status: 'Resolved', date: '2024-05-12', resident: 'Meena Patel', flat: 'B-202', assignedTo: 'Maintenance Team', priority: 'Medium' },
   { id: 'C-008', title: 'CCTV camera malfunction', category: 'Security', description: 'CCTV camera at Block A entrance is not recording properly.', status: 'In Progress', date: '2024-05-21', resident: 'Amit Joshi', flat: 'C-302', assignedTo: 'Security Team', priority: 'High' },
 ]
@@ -52,7 +52,7 @@ export const notices = [
   { id: 1, title: 'Water Supply Maintenance', date: '2024-05-20', content: 'Water supply will be shut down on 21 May 2024 from 10:00 AM to 2:00 PM for maintenance work.', category: 'Maintenance', priority: 'High' },
   { id: 2, title: 'Lift Maintenance', date: '2024-05-18', content: 'Lift will be under maintenance on 22 May 2024. Please use the stairs. We apologize for the inconvenience.', category: 'Maintenance', priority: 'Medium' },
   { id: 3, title: 'Festival Celebration', date: '2024-05-16', content: 'Diwali celebration will be held on Oct 28. All residents are invited to participate in the cultural programs.', category: 'Event', priority: 'Low' },
-  { id: 4, title: 'Parking Rules Update', date: '2024-05-15', content: 'All residents are requested to park only in the designated areas. Visitor parking is limited to 2 hours.', category: 'Rules', priority: 'Medium' },
+  { id: 4, title: 'Visitor Rules Update', date: '2024-05-15', content: 'All visitors must complete gate registration and follow designated waiting areas.', category: 'Rules', priority: 'Medium' },
   { id: 5, title: 'Visitor Entry Policy', date: '2024-05-10', content: 'New visitor entry policy effective from 1 June 2024. All visitors must register at the security gate.', category: 'Security', priority: 'High' },
   { id: 6, title: 'Monthly Maintenance Due', date: '2024-05-08', content: 'Monthly maintenance charges for May 2024 are due by 15th May. Late payment will attract a penalty of 2%.', category: 'Finance', priority: 'High' },
   { id: 7, title: 'Fire Drill', date: '2024-05-05', content: 'A fire safety drill will be conducted on 12th May at 10:00 AM. All residents must participate.', category: 'Safety', priority: 'High' },
@@ -92,25 +92,6 @@ export const serviceCategories = [
   { id: 'cook', name: 'Cook', icon: '👨‍🍳', description: 'Home cooking and catering' },
 ]
 
-// ── Parking ──
-export const parkingSlots = [
-  { id: 'A-101', block: 'A', status: 'Occupied', resident: 'Priya Sharma', flat: 'A-101', vehicle: 'MH 01 AB 1234', type: 'Car' },
-  { id: 'A-102', block: 'A', status: 'Occupied', resident: 'Rahul Verma', flat: 'A-102', vehicle: 'MH 02 CD 5678', type: 'Car' },
-  { id: 'A-103', block: 'A', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'A-104', block: 'A', status: 'Occupied', resident: 'Arjun Mehta', flat: 'A-104', vehicle: 'DL 03 EF 9012', type: 'Car' },
-  { id: 'A-105', block: 'A', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'B-101', block: 'B', status: 'Occupied', resident: 'Suresh Kumar', flat: 'B-201', vehicle: 'KA 04 GH 3456', type: 'Car' },
-  { id: 'B-102', block: 'B', status: 'Occupied', resident: 'Meena Patel', flat: 'B-202', vehicle: 'MH 05 IJ 7890', type: 'Bike' },
-  { id: 'B-103', block: 'B', status: 'Reserved', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'B-104', block: 'B', status: 'Occupied', resident: 'Sneha Rao', flat: 'B-204', vehicle: 'TN 06 KL 1234', type: 'Car' },
-  { id: 'B-105', block: 'B', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'C-101', block: 'C', status: 'Occupied', resident: 'Deepa Nair', flat: 'C-301', vehicle: 'KL 07 MN 5678', type: 'Car' },
-  { id: 'C-102', block: 'C', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'C-103', block: 'C', status: 'Occupied', resident: 'Amit Joshi', flat: 'C-302', vehicle: 'GJ 08 OP 9012', type: 'Car' },
-  { id: 'C-104', block: 'C', status: 'Reserved', resident: null, flat: null, vehicle: null, type: null },
-  { id: 'C-105', block: 'C', status: 'Available', resident: null, flat: null, vehicle: null, type: null },
-]
-
 // ── Family Members ──
 export const familyMembers = [
   { id: 1, name: 'Priya Sharma', relation: 'Self', phone: '9876543210', age: 35 },
@@ -123,7 +104,7 @@ export const familyMembers = [
 export const notifications = [
   { id: 1, title: 'Complaint C-034 is in progress', description: 'Your complaint about water leakage has been assigned to the maintenance team.', time: '2 hours ago', type: 'complaint', read: false, date: 'Today' },
   { id: 2, title: 'Water supply maintenance on 21 May', description: 'Water supply will be shut down from 10:00 AM to 2:00 PM.', time: '4 hours ago', type: 'notice', read: false, date: 'Today' },
-  { id: 3, title: 'New notice: Parking Rules Update', description: 'New parking rules have been posted. Please review the updated guidelines.', time: '6 hours ago', type: 'notice', read: true, date: 'Today' },
+  { id: 3, title: 'New notice: Visitor Rules Update', description: 'New visitor gate rules have been posted. Please review the updated guidelines.', time: '6 hours ago', type: 'notice', read: true, date: 'Today' },
   { id: 4, title: 'Your booking with Ravi Plumber is confirmed', description: 'Service booking for 25 May, 10:00 AM has been confirmed.', time: '1 day ago', type: 'booking', read: true, date: 'Yesterday' },
   { id: 5, title: 'Event: Yoga Session tomorrow', description: 'Reminder: Yoga session is scheduled for tomorrow at 7:00 AM.', time: '1 day ago', type: 'event', read: true, date: 'Yesterday' },
   { id: 6, title: 'Maintenance bill generated', description: 'Your maintenance bill for May 2024 has been generated. Amount: ₹5,500.', time: '2 days ago', type: 'billing', read: true, date: 'Earlier' },
@@ -168,7 +149,7 @@ export const facilities = [
   { id: 5, name: 'Guest Room', icon: '🛏️', description: 'Guest accommodation for visitors' },
   { id: 6, name: 'Tennis Court', icon: '🎾', description: 'Professional tennis court with floodlights' },
   { id: 7, name: 'Garden', icon: '🌿', description: 'Beautiful landscaped gardens and walking paths' },
-  { id: 8, name: 'Parking', icon: '🅿️', description: 'Covered parking for cars and two-wheelers' },
+  { id: 8, name: 'Fitness Zone', icon: '🏋️', description: 'Indoor fitness and wellness area for residents' },
 ]
 
 // ── Maintenance Bills ──
@@ -210,7 +191,7 @@ export const faqs = [
 
 // ── Incident Reports ──
 export const incidentReports = [
-  { id: 1, type: 'Theft', location: 'Parking Area B', description: 'Bicycle stolen from parking area.', severity: 'High', date: '2024-05-18', status: 'Under Investigation', reportedBy: 'Security Guard 1' },
+  { id: 1, type: 'Theft', location: 'Block B Entrance', description: 'Bicycle stolen near the entrance area.', severity: 'High', date: '2024-05-18', status: 'Under Investigation', reportedBy: 'Security Guard 1' },
   { id: 2, type: 'Vandalism', location: 'Garden Area', description: 'Garden bench damaged by unknown persons.', severity: 'Medium', date: '2024-05-15', status: 'Resolved', reportedBy: 'Security Guard 2' },
   { id: 3, type: 'Trespassing', location: 'Back Gate', description: 'Unauthorized person attempted entry through back gate.', severity: 'High', date: '2024-05-20', status: 'Under Investigation', reportedBy: 'Security Guard 1' },
 ]
@@ -258,11 +239,6 @@ export const analyticsData = {
     'Community Hall': 8,
     'Guest Room': 5,
     'Tennis Court': 10,
-  },
-  parkingUtilization: {
-    'Occupied': 9,
-    'Available': 4,
-    'Reserved': 2,
   },
   monthlyRevenue: [
     { month: 'Jan', amount: 125000 },

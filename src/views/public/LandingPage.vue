@@ -112,7 +112,7 @@ const featureCards = [
   { icon: '📢', title: 'Notices & Events', desc: 'Stay updated with society announcements, events, and important notices.', bg: 'var(--color-primary-100)' },
   { icon: '📅', title: 'Service Booking', desc: 'Book amenities and hire service providers with just a few clicks.', bg: 'var(--color-secondary-100)' },
   { icon: '📋', title: 'Complaint Management', desc: 'Report issues and track complaint resolution in real-time.', bg: 'var(--color-accent-100)' },
-  { icon: '🅿️', title: 'Parking Tracking', desc: 'Manage parking slots, visitor parking, and vehicle tracking.', bg: 'var(--color-info-100)' },
+  { icon: '🛡️', title: 'Visitor Security', desc: 'Track visitor entries, gate approvals, and incident visibility.', bg: 'var(--color-info-100)' },
 ]
 </script>
 

@@ -125,6 +125,16 @@ CREATE TABLE IF NOT EXISTS events (
     FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS event_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    registered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(event_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS complaints (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     society_id INTEGER NOT NULL,
@@ -153,33 +163,6 @@ CREATE TABLE IF NOT EXISTS complaint_updates (
     FOREIGN KEY (updated_by_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS parking_spaces (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    society_id INTEGER NOT NULL,
-    space_number TEXT NOT NULL,
-    space_type TEXT NOT NULL CHECK (space_type IN ('resident', 'visitor', 'reserved')),
-    current_status TEXT NOT NULL DEFAULT 'available' CHECK (current_status IN ('available', 'occupied', 'reserved', 'blocked')),
-    assigned_unit_id INTEGER,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (society_id) REFERENCES societies(id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_unit_id) REFERENCES units(id) ON DELETE SET NULL,
-    UNIQUE (society_id, space_number)
-);
-
-CREATE TABLE IF NOT EXISTS parking_allocations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    parking_space_id INTEGER NOT NULL,
-    unit_id INTEGER NOT NULL,
-    vehicle_number TEXT NOT NULL,
-    allocated_by_user_id INTEGER NOT NULL,
-    allocation_status TEXT NOT NULL DEFAULT 'active' CHECK (allocation_status IN ('active', 'released')),
-    allocated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    released_at TEXT,
-    FOREIGN KEY (parking_space_id) REFERENCES parking_spaces(id) ON DELETE CASCADE,
-    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
-    FOREIGN KEY (allocated_by_user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS visitor_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     society_id INTEGER NOT NULL,
@@ -190,12 +173,10 @@ CREATE TABLE IF NOT EXISTS visitor_entries (
     contact_number TEXT,
     entry_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     exit_time TEXT,
-    parking_space_id INTEGER,
     remarks TEXT,
     FOREIGN KEY (society_id) REFERENCES societies(id) ON DELETE CASCADE,
     FOREIGN KEY (recorded_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (resident_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (parking_space_id) REFERENCES parking_spaces(id) ON DELETE SET NULL
+    FOREIGN KEY (resident_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS provider_reviews (
@@ -216,3 +197,4 @@ CREATE INDEX IF NOT EXISTS idx_units_society ON units(society_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_provider_status ON service_bookings(provider_id, booking_status);
 CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
 CREATE INDEX IF NOT EXISTS idx_visitor_entries_time ON visitor_entries(society_id, entry_time);
+CREATE INDEX IF NOT EXISTS idx_event_registrations_event ON event_registrations(event_id);

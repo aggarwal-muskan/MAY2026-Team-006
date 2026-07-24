@@ -14,7 +14,6 @@ SocioNeed provides a centralized platform for managing society operations, inclu
 - 📢 Notices & Announcements
 - 🛠 Complaint Management
 - 🏢 Amenity Booking
-- 🚗 Parking Management
 - 👨‍🔧 Service Provider Management
 - 👮 Security Portal
 - 💳 Maintenance Billing
@@ -66,7 +65,6 @@ SocioNeed provides a centralized platform for managing society operations, inclu
 - Notices
 - Events
 - Service Booking
-- Parking
 - Maintenance Bills
 - Family Members
 
@@ -78,7 +76,6 @@ SocioNeed provides a centralized platform for managing society operations, inclu
 - User Management
 - Complaint Management
 - Notice Management
-- Parking Management
 - Service Provider Management
 - Reports & Analytics
 
@@ -99,7 +96,6 @@ SocioNeed provides a centralized platform for managing society operations, inclu
 - Dashboard
 - Visitor Entry
 - Visitor Exit
-- Parking Monitoring
 - Emergency Alerts
 
 ---
@@ -212,7 +208,6 @@ Backend tasks include:
 - Complaint APIs
 - Notice APIs
 - Event APIs
-- Parking APIs
 - Service Booking APIs
 - Maintenance Billing APIs
 - Notifications
