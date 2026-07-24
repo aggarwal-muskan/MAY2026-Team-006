@@ -80,23 +80,14 @@
       <form class="card form-card" @submit.prevent="notify.success('Event created')"><div class="form-grid two-col"><label class="form-group"><span class="form-label">Event Name</span><input type="text" /></label><label class="form-group"><span class="form-label">Category</span><input type="text" /></label></div><div class="form-grid two-col"><label class="form-group"><span class="form-label">Date / Time</span><input type="text" /></label><label class="form-group"><span class="form-label">Venue</span><input type="text" /></label></div><label class="form-group"><span class="form-label">Description</span><textarea rows="5"></textarea></label><button class="btn btn-primary">Create Event</button></form>
     </template>
 
-    <template v-else-if="page === 'parking'">
-      <div class="screen-header"><h1>Parking Management</h1><p>Color-coded parking slots across the society.</p></div>
-      <div class="parking-grid admin-parking">
-        <div v-for="slot in parkingSlots" :key="slot.id" class="parking-slot" :class="slot.status.toLowerCase()">{{ slot.id }}</div>
-      </div>
-    </template>
 
-    <template v-else-if="page === 'assign-parking'">
-      <div class="screen-header"><h1>Assign Parking</h1><p>Assign a slot to a resident and vehicle.</p></div>
-      <form class="card form-card" @submit.prevent="notify.success('Parking slot assigned')"><div class="form-grid two-col"><label class="form-group"><span class="form-label">Resident</span><select><option v-for="resident in residents" :key="resident.id">{{ resident.name }}</option></select></label><label class="form-group"><span class="form-label">Slot</span><select><option v-for="slot in parkingSlots" :key="slot.id">{{ slot.id }}</option></select></label></div><label class="form-group"><span class="form-label">Vehicle Number</span><input type="text" /></label><button class="btn btn-primary">Assign Slot</button></form>
-    </template>
+
 
     <template v-else-if="page === 'analytics'">
       <div class="screen-header"><h1>Analytics</h1><p>Usage, occupancy, and event trends.</p></div>
       <div class="content-grid two-col">
         <section class="card"><h3 class="card-title">Complaints</h3><div class="bar-chart"><div v-for="point in analyticsData.complaintsOverTime" :key="point.month" class="bar-item"><span class="bar" :style="{ height: `${point.count * 4}px` }"></span><small>{{ point.month }}</small></div></div></section>
-        <section class="card"><h3 class="card-title">Occupancy</h3><div v-for="(value, key) in analyticsData.parkingUtilization" :key="key" class="progress-row"><span>{{ key }}</span><div class="progress"><span :style="{ width: `${value * 10}%` }"></span></div></div></section>
+        <section class="card"><h3 class="card-title">Occupancy</h3><div v-for="(value, key) in analyticsData.bookingsByService" :key="key" class="progress-row"><span>{{ key }}</span><div class="progress"><span :style="{ width: `${value * 3}%` }"></span></div></div></section>
       </div>
     </template>
 
@@ -137,7 +128,7 @@ import {
   events,
   maintenanceBills,
   notices,
-  parkingSlots,
+
   residents,
   serviceProviders,
   systemLogs,
@@ -165,7 +156,6 @@ const roles = [
 
 const reports = [
   { title: 'Monthly Summary', description: 'Residents, complaints, and bookings overview.' },
-  { title: 'Parking Snapshot', description: 'Available, occupied, and reserved slot report.' },
   { title: 'Notice Archive', description: 'Published notices and event communications.' },
 ]
 </script>
@@ -189,15 +179,14 @@ const reports = [
 .progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--color-secondary), var(--color-info)); }
 .toolbar { margin-bottom: var(--space-2); }
 .toolbar input { width: 100%; }
-.parking-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); }
-.admin-parking .parking-slot { min-height: 72px; display: grid; place-items: center; }
+
 .notice-row, .report-card { display: grid; gap: var(--space-3); }
 .row-actions { display: flex; gap: var(--space-2); }
 .form-card { display: grid; gap: var(--space-4); }
 .form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 @media (max-width: 960px) {
-  .stat-grid, .content-grid.two-col, .card-grid.three-col, .parking-grid, .form-grid.two-col { grid-template-columns: 1fr; }
+  .stat-grid, .content-grid.two-col, .card-grid.three-col, .form-grid.two-col { grid-template-columns: 1fr; }
   .screen-header.row-between { flex-direction: column; align-items: flex-start; }
 }
 </style>

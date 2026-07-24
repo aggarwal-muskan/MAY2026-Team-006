@@ -223,41 +223,8 @@
       </div>
     </template>
 
-    <template v-else-if="page === 'parking'">
-      <div class="content-grid two-col">
-        <section class="card">
-          <h1>My Parking</h1>
-          <p>Assigned slot: <strong>B-102</strong> · Flat: <strong>A-101</strong></p>
-          <button class="btn btn-primary">Download Pass</button>
-        </section>
-        <section class="card">
-          <h3 class="card-title">Visitor Parking</h3>
-          <div class="parking-grid small">
-            <div v-for="slot in visitorSlots" :key="slot.id" class="parking-slot" :class="slot.status.toLowerCase()">{{ slot.id }}</div>
-          </div>
-        </section>
-      </div>
-    </template>
 
-    <template v-else-if="page === 'visitor-parking'">
-      <div class="screen-header">
-        <h1>Visitor Parking</h1>
-        <p>Book temporary parking for visitors and guests.</p>
-      </div>
-      <div class="content-grid two-col">
-        <form class="card form-card" @submit.prevent="notify.success('Visitor parking booked')">
-          <label class="form-group"><span class="form-label">Visitor Name</span><input type="text" placeholder="Enter visitor name" /></label>
-          <label class="form-group"><span class="form-label">Vehicle Number</span><input type="text" placeholder="Vehicle registration" /></label>
-          <button class="btn btn-primary">Book Slot</button>
-        </form>
-        <section class="card">
-          <h3 class="card-title">Available Slots</h3>
-          <div class="parking-grid small">
-            <div v-for="slot in visitorSlots" :key="slot.id + 'v'" class="parking-slot" :class="slot.status.toLowerCase()">{{ slot.id }}</div>
-          </div>
-        </section>
-      </div>
-    </template>
+
 
     <template v-else-if="page === 'family'">
       <div class="screen-header row-between">
@@ -385,7 +352,7 @@ import {
   faqs,
   maintenanceBills,
   notices,
-  parkingSlots,
+
   serviceCategories,
 } from '@/data/mockData'
 import { badgeClass, currency, days, stars } from './screenUtils'
@@ -406,7 +373,7 @@ const dashboardStats = [
 const quickActions = [
   { label: 'Raise Complaint', icon: '📝', to: '/resident/complaints/new' },
   { label: 'Book Service', icon: '🛠️', to: '/resident/services' },
-  { label: 'Pay Parking', icon: '🅿️', to: '/resident/parking' },
+  { label: 'Book Amenity', icon: '🏛️', to: '/resident/amenities' },
   { label: 'My Family', icon: '👪', to: '/resident/family' },
 ]
 
@@ -433,7 +400,7 @@ const serviceRates = [
 const availability = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const calendarDays = days(30)
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00']
-const visitorSlots = parkingSlots.filter(slot => slot.block === 'B').slice(0, 5)
+
 
 function submitComplaint() {
   notify.success('Complaint submitted successfully')
@@ -471,11 +438,7 @@ function submitComplaint() {
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: var(--space-4); }
 .calendar-day { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-gray-50); border: 1px solid var(--color-border); }
 .calendar-day.active { background: var(--color-primary); color: white; }
-.parking-grid.small { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); }
-.parking-slot { padding: var(--space-3); text-align: center; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-gray-50); }
-.parking-slot.available { background: var(--color-secondary-50); color: var(--color-secondary-dark); }
-.parking-slot.occupied { background: var(--color-danger-50); color: var(--color-danger-dark); }
-.parking-slot.reserved { background: var(--color-accent-50); color: var(--color-accent-dark); }
+
 .detail-list { display: grid; gap: var(--space-3); }
 .detail-row { display: flex; justify-content: space-between; gap: var(--space-4); }
 .timeline-row { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
