@@ -1,0 +1,578 @@
+openapi: 3.0.3
+info:
+  title: SocioNeed API - Sprint 1
+  version: 1.0.0
+  description: |
+    Sprint 1 APIs for core platform setup: authentication, user management,
+    societies, units/occupancies, notices, and events.
+servers:
+  - url: http://127.0.0.1:5000
+    description: Local backend
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Users
+  - name: Societies
+  - name: Units
+  - name: Occupancies
+  - name: Notices
+  - name: Events
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      x-user-stories: [US-001 Resident registration, US-002 Provider registration]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email or phone
+      x-user-stories: [US-003 Multi-role login]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/auth/verify-token:
+    post:
+      tags: [Auth]
+      summary: Verify JWT token
+      x-user-stories: [US-004 Session verification]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh JWT token
+      x-user-stories: [US-004 Session verification]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users (admin)
+      x-user-stories: [US-005 Admin user listing]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [Users]
+      summary: Create user (admin)
+      x-user-stories: [US-006 Admin create user]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Current user profile
+      x-user-stories: [US-007 Profile view]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    put:
+      tags: [Users]
+      summary: Update current user profile
+      x-user-stories: [US-008 Profile update]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/users/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      summary: Get user details
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Users]
+      summary: Update user
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    delete:
+      tags: [Users]
+      summary: Delete user (admin)
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/societies:
+    get:
+      tags: [Societies]
+      summary: List societies (admin)
+      x-user-stories: [US-009 Society management]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    post:
+      tags: [Societies]
+      summary: Create society (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSocietyRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/societies/{society_id}:
+    parameters:
+      - $ref: '#/components/parameters/SocietyId'
+    get:
+      tags: [Societies]
+      summary: Get society details
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Societies]
+      summary: Update society
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/units:
+    get:
+      tags: [Units]
+      summary: List units
+      x-user-stories: [US-010 Unit management]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    post:
+      tags: [Units]
+      summary: Create unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/units/{unit_id}:
+    parameters:
+      - $ref: '#/components/parameters/UnitId'
+    get:
+      tags: [Units]
+      summary: Get unit
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Units]
+      summary: Update unit
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    delete:
+      tags: [Units]
+      summary: Delete unit
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/occupancies:
+    get:
+      tags: [Occupancies]
+      summary: List occupancies
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    post:
+      tags: [Occupancies]
+      summary: Create occupancy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOccupancyRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/occupancies/{occupancy_id}:
+    parameters:
+      - $ref: '#/components/parameters/OccupancyId'
+    put:
+      tags: [Occupancies]
+      summary: Update occupancy
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    delete:
+      tags: [Occupancies]
+      summary: Delete occupancy
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/notices:
+    get:
+      tags: [Notices]
+      summary: List notices
+      x-user-stories: [US-011 Notice board]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    post:
+      tags: [Notices]
+      summary: Create notice (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoticeRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/notices/{notice_id}:
+    parameters:
+      - $ref: '#/components/parameters/NoticeId'
+    get:
+      tags: [Notices]
+      summary: Get notice
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Notices]
+      summary: Update notice
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    delete:
+      tags: [Notices]
+      summary: Delete notice
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/events:
+    get:
+      tags: [Events]
+      summary: List events
+      x-user-stories: [US-012 Event management]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    post:
+      tags: [Events]
+      summary: Create event (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/events/{event_id}:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    get:
+      tags: [Events]
+      summary: Get event details
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Events]
+      summary: Update event
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+    delete:
+      tags: [Events]
+      summary: Delete event
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+  /api/events/{event_id}/register:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    post:
+      tags: [Events]
+      summary: Register for event
+      x-user-stories: [US-013 Resident event participation]
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/events/{event_id}/unregister:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    post:
+      tags: [Events]
+      summary: Unregister from event
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema: { type: integer }
+    SocietyId:
+      name: society_id
+      in: path
+      required: true
+      schema: { type: integer }
+    UnitId:
+      name: unit_id
+      in: path
+      required: true
+      schema: { type: integer }
+    OccupancyId:
+      name: occupancy_id
+      in: path
+      required: true
+      schema: { type: integer }
+    NoticeId:
+      name: notice_id
+      in: path
+      required: true
+      schema: { type: integer }
+    EventId:
+      name: event_id
+      in: path
+      required: true
+      schema: { type: integer }
+  responses:
+    OkResponse:
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiSuccessEnvelope'
+    CreatedResponse:
+      description: Resource created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiSuccessEnvelope'
+    ValidationError:
+      description: Validation failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    UnauthorizedError:
+      description: Unauthorized request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    ForbiddenError:
+      description: Forbidden for role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    ConflictError:
+      description: Conflict in current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+  schemas:
+    ApiSuccessEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string, example: Success }
+        data: {}
+    ApiErrorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string, example: Missing required fields: email }
+    RegisterRequest:
+      type: object
+      required: [full_name, email, password, role, society_id]
+      properties:
+        full_name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string }
+        role: { type: string, enum: [admin, owner, tenant, service_provider, security] }
+        society_id: { type: integer }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, description: Email or phone accepted by backend }
+        password: { type: string }
+        role: { type: string, description: Supports aliases resident/provider mapped in backend }
+    AuthSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token: { type: string }
+                expires_in: { type: integer }
+                user:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    full_name: { type: string }
+                    email: { type: string }
+                    role: { type: string }
+    CreateUserRequest:
+      type: object
+      required: [society_id, role, full_name, email, password]
+      properties:
+        society_id: { type: integer }
+        role: { type: string }
+        full_name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        password: { type: string }
+    CreateSocietyRequest:
+      type: object
+      required: [name, address, city, pincode]
+      properties:
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        pincode: { type: string }
+        contact_email: { type: string }
+        contact_phone: { type: string }
+    CreateUnitRequest:
+      type: object
+      required: [society_id, unit_number]
+      properties:
+        society_id: { type: integer }
+        block_name: { type: string }
+        unit_number: { type: string }
+        floor: { type: string }
+        unit_type: { type: string }
+        status: { type: string }
+    CreateOccupancyRequest:
+      type: object
+      required: [unit_id, user_id, occupancy_type, start_date]
+      properties:
+        unit_id: { type: integer }
+        user_id: { type: integer }
+        occupancy_type: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        is_primary: { type: boolean }
+    CreateNoticeRequest:
+      type: object
+      required: [title, body, notice_type, priority]
+      properties:
+        title: { type: string }
+        body: { type: string }
+        notice_type: { type: string }
+        priority: { type: string }
+        publish_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    CreateEventRequest:
+      type: object
+      required: [title, event_date]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        event_date: { type: string, format: date }
+        start_time: { type: string }
+        end_time: { type: string }
+        venue: { type: string }
+        status: { type: string }

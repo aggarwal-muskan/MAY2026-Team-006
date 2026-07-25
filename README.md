@@ -64,7 +64,7 @@ SocioNeed provides a centralized platform for managing society operations, inclu
 - My Complaints
 - Notices
 - Events
-- Service Booking 
+- Service Booking
 - Maintenance Bills
 - Family Members
 

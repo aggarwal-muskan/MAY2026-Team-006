@@ -1,0 +1,1253 @@
+openapi: 3.0.3
+info:
+  title: SocioNeed API
+  version: 1.1.0
+  description: |
+    Unified API specification for SocioNeed backend.
+    This file documents implemented endpoints, expected request/response behavior,
+    standard error envelopes, and user-story mapping for milestone submission.
+servers:
+  - url: http://127.0.0.1:5000
+    description: Local development backend
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Users
+  - name: Societies
+  - name: Units
+  - name: Occupancies
+  - name: Notices
+  - name: Events
+  - name: Complaints
+  - name: Service Categories
+  - name: Providers
+  - name: Slots
+  - name: Bookings
+  - name: Reviews
+  - name: Visitors
+  - name: Analytics
+  - name: Reports
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a user account
+      description: Creates a new account under a valid society and returns an access token.
+      x-user-stories: [US-001, US-002]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email or phone
+      description: Authenticates a user and returns JWT token with role and society claims.
+      x-user-stories: [US-003]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current session
+      description: Stateless logout acknowledgement for authenticated users.
+      x-user-stories: [US-004]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /api/auth/verify-token:
+    post:
+      tags: [Auth]
+      summary: Verify JWT token
+      description: Validates token and returns decoded claims payload.
+      x-user-stories: [US-004]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /api/auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: Issues a fresh access token for currently authenticated user.
+      x-user-stories: [US-004]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using account identifier
+      description: Resets password using email or phone identifier and optional phone verification.
+      x-user-stories: [US-027]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password for logged in user
+      description: Verifies current password and updates to a new password.
+      x-user-stories: [US-028]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: Returns paginated users with filtering by role/status/society and search.
+      x-user-stories: [US-005]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Users]
+      summary: Create user
+      description: Admin creates a user account with role and status.
+      x-user-stories: [US-006]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      x-user-stories: [US-007]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Users]
+      summary: Update current user profile
+      x-user-stories: [US-008]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeRequest'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/users/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Users]
+      summary: Update user by ID
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Users]
+      summary: Delete user by ID
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/users/{user_id}/activate:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [Users]
+      summary: Activate user
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/users/{user_id}/deactivate:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [Users]
+      summary: Deactivate user
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/societies:
+    get:
+      tags: [Societies]
+      summary: List societies
+      x-user-stories: [US-009]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Societies]
+      summary: Create society
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSocietyRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/societies/{society_id}:
+    parameters:
+      - $ref: '#/components/parameters/SocietyId'
+    get:
+      tags: [Societies]
+      summary: Get society by ID
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Societies]
+      summary: Update society
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/units:
+    get:
+      tags: [Units]
+      summary: List units
+      x-user-stories: [US-010]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Units]
+      summary: Create unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/units/{unit_id}:
+    parameters:
+      - $ref: '#/components/parameters/UnitId'
+    get:
+      tags: [Units]
+      summary: Get unit by ID
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Units]
+      summary: Update unit
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Units]
+      summary: Delete unit
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/units/{unit_id}/residents:
+    parameters:
+      - $ref: '#/components/parameters/UnitId'
+    get:
+      tags: [Units]
+      summary: List occupancy records for a unit
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/occupancies:
+    get:
+      tags: [Occupancies]
+      summary: List occupancies
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Occupancies]
+      summary: Create occupancy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOccupancyRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/occupancies/{occupancy_id}:
+    parameters:
+      - $ref: '#/components/parameters/OccupancyId'
+    put:
+      tags: [Occupancies]
+      summary: Update occupancy
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Occupancies]
+      summary: Delete occupancy
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/notices:
+    get:
+      tags: [Notices]
+      summary: List notices
+      x-user-stories: [US-011]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Notices]
+      summary: Create notice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoticeRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/notices/{notice_id}:
+    parameters:
+      - $ref: '#/components/parameters/NoticeId'
+    get:
+      tags: [Notices]
+      summary: Get notice
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Notices]
+      summary: Update notice
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Notices]
+      summary: Delete notice
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/notices/{notice_id}/publish:
+    parameters:
+      - $ref: '#/components/parameters/NoticeId'
+    post:
+      tags: [Notices]
+      summary: Publish notice now
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/events:
+    get:
+      tags: [Events]
+      summary: List events
+      x-user-stories: [US-012]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Events]
+      summary: Create event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/events/{event_id}:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    get:
+      tags: [Events]
+      summary: Get event details
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Events]
+      summary: Update event
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Events]
+      summary: Delete event
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/events/{event_id}/attendees:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    get:
+      tags: [Events]
+      summary: List event attendee registrations
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/events/{event_id}/register:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    post:
+      tags: [Events]
+      summary: Register for event
+      x-user-stories: [US-013]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+
+  /api/events/{event_id}/unregister:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    post:
+      tags: [Events]
+      summary: Unregister from event
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/events/{event_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    put:
+      tags: [Events]
+      summary: Cancel event
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/complaints:
+    get:
+      tags: [Complaints]
+      summary: List complaints
+      x-user-stories: [US-014]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Complaints]
+      summary: Raise complaint
+      x-user-stories: [US-015]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComplaintRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/complaints/{complaint_id}:
+    parameters:
+      - $ref: '#/components/parameters/ComplaintId'
+    get:
+      tags: [Complaints]
+      summary: Get complaint details with update timeline
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Complaints]
+      summary: Update complaint
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Complaints]
+      summary: Delete complaint
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/complaints/{complaint_id}/assign:
+    parameters:
+      - $ref: '#/components/parameters/ComplaintId'
+    put:
+      tags: [Complaints]
+      summary: Assign complaint to a user
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/complaints/{complaint_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ComplaintId'
+    put:
+      tags: [Complaints]
+      summary: Change complaint status
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/complaints/{complaint_id}/updates:
+    parameters:
+      - $ref: '#/components/parameters/ComplaintId'
+    post:
+      tags: [Complaints]
+      summary: Add complaint update note
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/service-categories:
+    get:
+      tags: [Service Categories]
+      summary: List service categories
+      x-user-stories: [US-016]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Service Categories]
+      summary: Create service category
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/service-categories/{category_id}:
+    parameters:
+      - $ref: '#/components/parameters/CategoryId'
+    get:
+      tags: [Service Categories]
+      summary: Get category
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Service Categories]
+      summary: Update category
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/providers:
+    get:
+      tags: [Providers]
+      summary: List providers
+      x-user-stories: [US-017]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Providers]
+      summary: Create provider profile
+      x-user-stories: [US-018]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/providers/{provider_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Get provider profile
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Providers]
+      summary: Update provider profile
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/providers/{provider_id}/verify:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    put:
+      tags: [Providers]
+      summary: Approve provider verification
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/providers/{provider_id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    put:
+      tags: [Providers]
+      summary: Reject provider verification
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/providers/{provider_id}/availability:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Get available slots for provider
+      x-user-stories: [US-019]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/providers/{provider_id}/bookings:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Get bookings for provider
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/providers/{provider_id}/earnings:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Get provider earnings summary
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/providers/{provider_id}/reviews:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: List provider reviews
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/slots/{provider_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Slots]
+      summary: List slots for provider
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/slots:
+    post:
+      tags: [Slots]
+      summary: Create provider slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSlotRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/slots/{slot_id}:
+    parameters:
+      - $ref: '#/components/parameters/SlotId'
+    put:
+      tags: [Slots]
+      summary: Update provider slot
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Slots]
+      summary: Delete provider slot
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/bookings:
+    get:
+      tags: [Bookings]
+      summary: List bookings
+      x-user-stories: [US-020]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Bookings]
+      summary: Create booking
+      x-user-stories: [US-021]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+
+  /api/bookings/{booking_id}:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    get:
+      tags: [Bookings]
+      summary: Get booking details
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Bookings]
+      summary: Delete booking
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/bookings/{booking_id}/accept:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    put:
+      tags: [Bookings]
+      summary: Accept booking
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/bookings/{booking_id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    put:
+      tags: [Bookings]
+      summary: Decline booking
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/bookings/{booking_id}/complete:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    put:
+      tags: [Bookings]
+      summary: Complete booking
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/bookings/{booking_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/BookingId'
+    put:
+      tags: [Bookings]
+      summary: Cancel booking
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/reviews:
+    post:
+      tags: [Reviews]
+      summary: Create review
+      x-user-stories: [US-022]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '422': { $ref: '#/components/responses/UnprocessableError' }
+
+  /api/reviews/provider/{provider_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Reviews]
+      summary: Get provider review summary
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/reviews/{review_id}:
+    parameters:
+      - $ref: '#/components/parameters/ReviewId'
+    put:
+      tags: [Reviews]
+      summary: Update review
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Reviews]
+      summary: Delete review
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/visitors:
+    get:
+      tags: [Visitors]
+      summary: List visitor entries
+      x-user-stories: [US-024]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+    post:
+      tags: [Visitors]
+      summary: Create visitor entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVisitorRequest'
+      responses:
+        '201': { $ref: '#/components/responses/CreatedResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/visitors/today:
+    get:
+      tags: [Visitors]
+      summary: Get today's visitor summary
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/visitors/{entry_id}:
+    parameters:
+      - $ref: '#/components/parameters/EntryId'
+    get:
+      tags: [Visitors]
+      summary: Get visitor entry by ID
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Visitors]
+      summary: Update visitor entry
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Visitors]
+      summary: Delete visitor entry
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/visitors/{entry_id}/exit:
+    parameters:
+      - $ref: '#/components/parameters/EntryId'
+    put:
+      tags: [Visitors]
+      summary: Mark visitor exit
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /api/analytics/dashboard/admin:
+    get:
+      tags: [Analytics]
+      summary: Admin dashboard metrics
+      x-user-stories: [US-025]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/analytics/dashboard/resident:
+    get:
+      tags: [Analytics]
+      summary: Resident dashboard metrics
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/analytics/dashboard/provider:
+    get:
+      tags: [Analytics]
+      summary: Provider dashboard metrics
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/analytics/dashboard/security:
+    get:
+      tags: [Analytics]
+      summary: Security dashboard metrics
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/analytics/complaints:
+    get:
+      tags: [Analytics]
+      summary: Complaint status analytics
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/analytics/bookings:
+    get:
+      tags: [Analytics]
+      summary: Booking status analytics
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/analytics/revenue:
+    get:
+      tags: [Analytics]
+      summary: Revenue analytics
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/reports/monthly:
+    get:
+      tags: [Reports]
+      summary: Monthly consolidated report
+      x-user-stories: [US-026]
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+  /api/reports/export:
+    post:
+      tags: [Reports]
+      summary: Export report file link
+      responses:
+        '200': { $ref: '#/components/responses/OkResponse' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    UserId: { name: user_id, in: path, required: true, schema: { type: integer } }
+    SocietyId: { name: society_id, in: path, required: true, schema: { type: integer } }
+    UnitId: { name: unit_id, in: path, required: true, schema: { type: integer } }
+    OccupancyId: { name: occupancy_id, in: path, required: true, schema: { type: integer } }
+    NoticeId: { name: notice_id, in: path, required: true, schema: { type: integer } }
+    EventId: { name: event_id, in: path, required: true, schema: { type: integer } }
+    ComplaintId: { name: complaint_id, in: path, required: true, schema: { type: integer } }
+    CategoryId: { name: category_id, in: path, required: true, schema: { type: integer } }
+    ProviderId: { name: provider_id, in: path, required: true, schema: { type: integer } }
+    SlotId: { name: slot_id, in: path, required: true, schema: { type: integer } }
+    BookingId: { name: booking_id, in: path, required: true, schema: { type: integer } }
+    ReviewId: { name: review_id, in: path, required: true, schema: { type: integer } }
+    EntryId: { name: entry_id, in: path, required: true, schema: { type: integer } }
+
+  responses:
+    OkResponse:
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiSuccessEnvelope'
+    CreatedResponse:
+      description: Resource created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiSuccessEnvelope'
+    ValidationError:
+      description: Invalid or missing input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    UnauthorizedError:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    ForbiddenError:
+      description: Access denied for role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    ConflictError:
+      description: Duplicate or conflicting state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+    UnprocessableError:
+      description: Business rule constraint failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorEnvelope'
+
+  schemas:
+    ApiSuccessEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string, example: Success }
+        data:
+          type: object
+          additionalProperties: true
+    ApiErrorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string, example: Missing required fields: email }
+
+    RegisterRequest:
+      type: object
+      required: [full_name, email, password, role, society_id]
+      properties:
+        full_name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        password: { type: string }
+        role: { type: string, enum: [admin, owner, tenant, service_provider, security] }
+        society_id: { type: integer }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, description: Email address or mobile number }
+        password: { type: string }
+        role: { type: string, description: Supports resident/provider aliases }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email, new_password]
+      properties:
+        email: { type: string, description: Email or phone identifier }
+        phone: { type: string, description: Optional second-factor phone check }
+        new_password: { type: string }
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password: { type: string }
+        new_password: { type: string }
+
+    CreateUserRequest:
+      type: object
+      required: [society_id, role, full_name, email, password]
+      properties:
+        society_id: { type: integer }
+        role: { type: string }
+        full_name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        password: { type: string }
+        status: { type: string }
+
+    UpdateMeRequest:
+      type: object
+      properties:
+        full_name: { type: string }
+        phone: { type: string }
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        full_name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        role: { type: string }
+        society_id: { type: integer }
+        status: { type: string }
+        password: { type: string }
+
+    CreateSocietyRequest:
+      type: object
+      required: [name, address, city, pincode]
+      properties:
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        pincode: { type: string }
+        contact_email: { type: string }
+        contact_phone: { type: string }
+
+    CreateUnitRequest:
+      type: object
+      required: [society_id, unit_number]
+      properties:
+        society_id: { type: integer }
+        block_name: { type: string }
+        unit_number: { type: string }
+        floor: { type: string }
+        unit_type: { type: string }
+        status: { type: string }
+
+    CreateOccupancyRequest:
+      type: object
+      required: [unit_id, user_id, occupancy_type, start_date]
+      properties:
+        unit_id: { type: integer }
+        user_id: { type: integer }
+        occupancy_type: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        is_primary: { type: boolean }
+
+    CreateNoticeRequest:
+      type: object
+      required: [title, body, notice_type, priority]
+      properties:
+        title: { type: string }
+        body: { type: string }
+        notice_type: { type: string }
+        priority: { type: string }
+        publish_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+
+    CreateEventRequest:
+      type: object
+      required: [title, event_date]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        event_date: { type: string, format: date }
+        start_time: { type: string }
+        end_time: { type: string }
+        venue: { type: string }
+        status: { type: string }
+
+    CreateComplaintRequest:
+      type: object
+      required: [subject, description, category, priority]
+      properties:
+        subject: { type: string }
+        description: { type: string }
+        category: { type: string }
+        priority: { type: string }
+
+    CreateProviderRequest:
+      type: object
+      required: [category_id, business_name]
+      properties:
+        user_id: { type: integer }
+        category_id: { type: integer }
+        business_name: { type: string }
+        service_description: { type: string }
+
+    CreateSlotRequest:
+      type: object
+      required: [provider_id, slot_start, slot_end]
+      properties:
+        provider_id: { type: integer }
+        slot_start: { type: string, format: date-time }
+        slot_end: { type: string, format: date-time }
+        is_available: { type: boolean }
+
+    CreateBookingRequest:
+      type: object
+      required: [provider_id]
+      properties:
+        provider_id: { type: integer }
+        slot_id: { type: integer }
+        request_notes: { type: string }
+
+    CreateReviewRequest:
+      type: object
+      required: [provider_id, booking_id, rating]
+      properties:
+        provider_id: { type: integer }
+        booking_id: { type: integer }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        feedback: { type: string }
+
+    CreateVisitorRequest:
+      type: object
+      required: [society_id, recorded_by_user_id, visitor_name]
+      properties:
+        society_id: { type: integer }
+        recorded_by_user_id: { type: integer }
+        resident_user_id: { type: integer }
+        visitor_name: { type: string }
+        vehicle_number: { type: string }
+        contact_number: { type: string }
+        remarks: { type: string }

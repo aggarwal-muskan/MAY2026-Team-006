@@ -4,10 +4,10 @@
       <div class="screen-hero card">
         <div>
           <p class="eyebrow">Resident Portal</p>
-          <h1>Good Morning, Priya Sharma</h1>
+          <h1>Good Morning, {{ currentUserDisplayName }}</h1>
           <p>Here is a quick snapshot of your society activity.</p>
         </div>
-        <div class="screen-avatar avatar avatar-xl">PS</div>
+        <div class="screen-avatar avatar avatar-xl">{{ currentUserInitials }}</div>
       </div>
       <div class="stat-grid">
         <div v-for="stat in dashboardStats" :key="stat.label" class="card stat-card">
@@ -18,12 +18,12 @@
       <div class="content-grid two-col">
         <section class="card">
           <div class="card-header"><span class="card-title">Latest Notices</span><router-link to="/resident/notices">View all</router-link></div>
-          <div v-for="notice in notices.slice(0, 4)" :key="notice.id" class="list-row">
+          <div v-for="notice in residentNotices.slice(0, 4)" :key="notice.id" class="list-row">
             <div>
               <strong>{{ notice.title }}</strong>
-              <p>{{ notice.content }}</p>
+              <p>{{ notice.content || notice.body }}</p>
             </div>
-            <span class="badge" :class="badgeClass(notice.priority)">{{ notice.category }}</span>
+            <span class="badge" :class="badgeClass(notice.priority)">{{ notice.category || notice.notice_type || 'Notice' }}</span>
           </div>
         </section>
         <section class="card">
@@ -39,20 +39,20 @@
       <div class="content-grid two-col">
         <section class="card">
           <div class="card-header"><span class="card-title">Upcoming Events</span><router-link to="/resident/events">View all</router-link></div>
-          <div v-for="event in events.slice(0, 3)" :key="event.id" class="event-card">
+          <div v-for="event in residentEvents.slice(0, 3)" :key="event.id" class="event-card">
             <div>
               <strong>{{ event.title }}</strong>
-              <p>{{ event.date }} · {{ event.time }} · {{ event.venue }}</p>
+              <p>{{ formatEventMeta(event) }}</p>
             </div>
-            <button class="btn btn-primary btn-sm">Join</button>
+            <button class="btn btn-primary btn-sm" @click="joinEvent(event.id)">Join</button>
           </div>
         </section>
         <section class="card">
           <div class="card-header"><span class="card-title">Recent Notices</span></div>
-          <div v-for="notice in notices.slice(0, 3)" :key="notice.id + '-recent'" class="list-row compact">
+          <div v-for="notice in residentNotices.slice(0, 3)" :key="notice.id + '-recent'" class="list-row compact">
             <div>
               <strong>{{ notice.title }}</strong>
-              <p>{{ notice.date }}</p>
+              <p>{{ notice.date || notice.publish_at || '-' }}</p>
             </div>
           </div>
         </section>
@@ -68,13 +68,13 @@
         <span v-for="chip in ['All', 'Maintenance', 'Events', 'Rules']" :key="chip" class="chip">{{ chip }}</span>
       </div>
       <div class="stack">
-        <article v-for="notice in notices" :key="notice.id" class="card notice-card">
+        <article v-for="notice in residentNotices" :key="notice.id" class="card notice-card">
           <div class="card-header no-border">
             <strong>{{ notice.title }}</strong>
             <span class="badge" :class="badgeClass(notice.priority)">{{ notice.priority }}</span>
           </div>
-          <p>{{ notice.content }}</p>
-          <small>{{ notice.date }} · {{ notice.category }}</small>
+          <p>{{ notice.content || notice.body }}</p>
+          <small>{{ notice.date || notice.publish_at || '-' }} · {{ notice.category || notice.notice_type || 'Notice' }}</small>
         </article>
       </div>
     </template>
@@ -85,12 +85,12 @@
         <p>Community activities, celebrations, and wellness sessions.</p>
       </div>
       <div class="card-grid three-col">
-        <article v-for="event in events" :key="event.id" class="card event-tile">
+        <article v-for="event in residentEvents" :key="event.id" class="card event-tile">
           <div class="tile-visual">{{ event.category }}</div>
           <h3>{{ event.title }}</h3>
-          <p>{{ event.date }} · {{ event.time }}</p>
+          <p>{{ event.date || event.event_date }} · {{ event.time || event.start_time || '-' }}</p>
           <p>{{ event.venue }}</p>
-          <button class="btn btn-primary btn-sm">Register / Join Event</button>
+          <button class="btn btn-primary btn-sm" @click="joinEvent(event.id)">Register / Join Event</button>
         </article>
       </div>
     </template>
@@ -107,12 +107,12 @@
         <table class="data-table">
           <thead><tr><th>#</th><th>Title</th><th>Category</th><th>Status</th><th>Date</th></tr></thead>
           <tbody>
-            <tr v-for="complaint in complaints" :key="complaint.id">
+            <tr v-for="complaint in residentComplaints" :key="complaint.id">
               <td>{{ complaint.id }}</td>
-              <td><router-link :to="`/resident/complaints/${complaint.id}`">{{ complaint.title }}</router-link></td>
+              <td><router-link :to="`/resident/complaints/${complaint.id}`">{{ complaint.title || complaint.subject }}</router-link></td>
               <td>{{ complaint.category }}</td>
               <td><span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span></td>
-              <td>{{ complaint.date }}</td>
+              <td>{{ complaint.date || complaint.created_at || '-' }}</td>
             </tr>
           </tbody>
         </table>
@@ -162,14 +162,24 @@
         <h1>Browse Services</h1>
         <p>Choose a trusted service provider category.</p>
       </div>
-      <div class="card-grid three-col">
-        <article v-for="provider in serviceCategories" :key="provider.id" class="card service-tile">
-          <div class="service-icon">{{ provider.icon }}</div>
-          <h3>{{ provider.name }}</h3>
-          <p>{{ provider.description }}</p>
-          <router-link to="/resident/services/provider/1" class="btn btn-outline btn-sm">View providers</router-link>
+      <div v-if="browseServiceCards.length > 0" class="card-grid three-col">
+        <article v-for="service in browseServiceCards" :key="service.id" class="card service-tile">
+          <div class="service-icon">🛠️</div>
+          <h3>{{ service.name }}</h3>
+          <p>{{ service.description || 'Verified community service provider' }}</p>
+          <router-link
+            v-if="hasProviderForCategory(service.id)"
+            :to="providerRouteForCategory(service.id)"
+            class="btn btn-outline btn-sm"
+          >
+            View providers
+          </router-link>
+          <span v-else class="chip">No providers yet</span>
         </article>
       </div>
+      <section v-else class="card">
+        <p>No service categories are configured yet.</p>
+      </section>
     </template>
 
     <template v-else-if="page === 'provider-details'">
@@ -178,13 +188,13 @@
           <div class="provider-top">
             <div class="avatar avatar-xl">RP</div>
             <div>
-              <h1>Ravi Plumber</h1>
-              <p>5 years experience · Plumbing expert</p>
-              <div class="stars">{{ stars(4.5).join(' ') }}</div>
+              <h1>{{ selectedProvider?.business_name || 'Provider' }}</h1>
+              <p>{{ selectedProvider?.service_description || 'Service provider profile' }}</p>
+              <div class="stars">{{ stars(selectedProvider?.rating_avg || 0).join(' ') }}</div>
             </div>
           </div>
-          <p>Experienced plumber specializing in bathroom repairs, pipe fitting, and drainage solutions.</p>
-          <button class="btn btn-primary">Book Now</button>
+          <p>{{ selectedProvider?.service_description || 'Book trusted providers for your needs.' }}</p>
+          <button class="btn btn-primary" @click="bookServiceNow">Book Now</button>
         </section>
         <section class="card">
           <h3 class="card-title">Services & Availability</h3>
@@ -216,15 +226,12 @@
       </div>
       <div class="chip-row"><span v-for="tab in ['Upcoming', 'Completed', 'Cancelled']" :key="tab" class="chip">{{ tab }}</span></div>
       <div class="stack">
-        <article v-for="booking in bookings" :key="booking.id" class="card booking-card">
-          <div><strong>{{ booking.facility }}</strong><p>{{ booking.date }} · {{ booking.time }}</p></div>
-          <span class="badge" :class="badgeClass(booking.status)">{{ booking.status }}</span>
+        <article v-for="booking in residentBookings" :key="booking.id" class="card booking-card">
+          <div><strong>{{ booking.facility || booking.provider_name || `Provider #${booking.provider_id}` }}</strong><p>{{ booking.date || booking.created_at || '-' }}</p></div>
+          <span class="badge" :class="badgeClass(booking.status || booking.booking_status)">{{ booking.status || booking.booking_status }}</span>
         </article>
       </div>
     </template>
-
-
-
 
     <template v-else-if="page === 'family'">
       <div class="screen-header row-between">
@@ -256,18 +263,53 @@
     <template v-else-if="page === 'profile'">
       <div class="content-grid two-col">
         <section class="card profile-card">
-          <div class="avatar avatar-xl">PS</div>
-          <h1>Priya Sharma</h1>
-          <p>A-101 · Green Valley Society</p>
-          <button class="btn btn-outline">Edit Profile</button>
+          <div class="avatar avatar-xl">{{ currentUserInitials }}</div>
+          <h1>{{ currentUserDisplayName }}</h1>
+          <p>{{ authStore.user?.flat || 'Resident' }} · Green Valley Society</p>
+          <button class="btn btn-outline" @click="isEditingProfile = !isEditingProfile">
+            {{ isEditingProfile ? 'Cancel' : 'Edit Profile' }}
+          </button>
         </section>
         <section class="card">
           <h3 class="card-title">Contact Details</h3>
-          <div class="detail-list">
-            <div class="detail-row"><span>Phone</span><strong>9876543210</strong></div>
-            <div class="detail-row"><span>Email</span><strong>priya.sharma@email.com</strong></div>
+          <div v-if="!isEditingProfile" class="detail-list">
+            <div class="detail-row"><span>Phone</span><strong>{{ profileForm.phone || '-' }}</strong></div>
+            <div class="detail-row"><span>Email</span><strong>{{ profileForm.email || '-' }}</strong></div>
           </div>
+          <form v-else class="form-card" @submit.prevent="saveProfile">
+            <label class="form-group">
+              <span class="form-label">Full Name</span>
+              <input v-model="profileForm.full_name" type="text" />
+            </label>
+            <label class="form-group">
+              <span class="form-label">Phone</span>
+              <input v-model="profileForm.phone" type="text" />
+            </label>
+            <label class="form-group">
+              <span class="form-label">Email (read-only)</span>
+              <input v-model="profileForm.email" type="text" disabled />
+            </label>
+            <button class="btn btn-primary">Save Profile</button>
+          </form>
         </section>
+      </div>
+    </template>
+
+    <template v-else-if="page === 'book-events'">
+      <div class="screen-header">
+        <h1>Book Events</h1>
+        <p>Register for upcoming community events.</p>
+      </div>
+      <div class="card-grid three-col">
+        <article v-for="event in residentEvents" :key="event.id + '-book'" class="card event-tile">
+          <div class="tile-visual">{{ event.category || 'Event' }}</div>
+          <h3>{{ event.title }}</h3>
+          <p>{{ event.date || event.event_date }} · {{ event.time || event.start_time || '-' }}</p>
+          <p>{{ event.venue }}</p>
+          <button class="btn btn-primary btn-sm" @click="joinEvent(event.id)">Book / Join</button>
+          <button class="btn btn-outline btn-sm" @click="leaveEvent(event.id)">Cancel Booking</button>
+          <small v-if="joinedEventIds.has(event.id)">Booked</small>
+        </article>
       </div>
     </template>
 
@@ -341,39 +383,99 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import {
   bookings,
-  complaints,
-  events,
+  complaints as mockComplaints,
+  events as mockEvents,
   familyMembers,
   faqs,
   maintenanceBills,
-  notices,
-
-  serviceCategories,
+  notices as mockNotices,
+  notifications,
+  serviceCategories as mockServiceCategories,
+  serviceProviders,
 } from '@/data/mockData'
 import { badgeClass, currency, days, stars } from './screenUtils'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const notify = useNotificationStore()
 const page = computed(() => route.meta.page || 'dashboard')
 
+const backendEvents = ref([])
+const backendNotices = ref([])
+const backendComplaints = ref([])
+const backendProviders = ref([])
+const backendServiceCategories = ref([])
+const backendBookings = ref([])
+const joinedEventIds = ref(new Set())
+const isEditingProfile = ref(false)
+const profileForm = reactive({ full_name: '', phone: '', email: '' })
+
+const residentEvents = computed(() => {
+  if (authStore.token) return backendEvents.value
+  return mockEvents
+})
+
+const residentNotices = computed(() => {
+  if (authStore.token) {
+    return [...backendNotices.value].sort((a, b) => {
+      const aTime = new Date(a.publish_at || a.created_at || a.date || 0).getTime()
+      const bTime = new Date(b.publish_at || b.created_at || b.date || 0).getTime()
+      return bTime - aTime
+    })
+  }
+  return mockNotices
+})
+
+const residentComplaints = computed(() => {
+  if (authStore.token) {
+    return [...backendComplaints.value].sort((a, b) => {
+      const aTime = new Date(a.created_at || a.date || 0).getTime()
+      const bTime = new Date(b.created_at || b.date || 0).getTime()
+      if (aTime !== bTime) return bTime - aTime
+      return Number(b.id || 0) - Number(a.id || 0)
+    })
+  }
+  return mockComplaints
+})
+
+const residentBookings = computed(() => {
+  if (authStore.token) return backendBookings.value
+  return bookings
+})
+
+const browseServiceCards = computed(() => {
+  if (authStore.token) return backendServiceCategories.value
+  return mockServiceCategories
+})
+
+const selectedProvider = computed(() => {
+  const id = Number(route.params.id)
+  if (!id) return backendProviders.value[0] || null
+  return backendProviders.value.find((item) => Number(item.id) === id) || null
+})
+
+const currentUserDisplayName = computed(() => authStore.user?.name || 'Resident')
+const currentUserInitials = computed(() => authStore.userInitials)
+
 const complaintForm = reactive({ category: 'Plumbing', title: '', description: '' })
 
-const dashboardStats = [
-  { label: 'My Complaints', value: complaints.length },
-  { label: 'My Bookings', value: bookings.length },
-  { label: 'Upcoming Events', value: events.length },
-  { label: 'New Notices', value: notices.length },
-]
+const dashboardStats = computed(() => [
+  { label: 'My Complaints', value: residentComplaints.value.length },
+  { label: 'My Bookings', value: residentBookings.value.length },
+  { label: 'Upcoming Events', value: residentEvents.value.length },
+  { label: 'New Notices', value: residentNotices.value.length },
+])
 
 const quickActions = [
   { label: 'Raise Complaint', icon: '📝', to: '/resident/complaints/new' },
   { label: 'Book Service', icon: '🛠️', to: '/resident/services' },
-  { label: 'Book Amenity', icon: '🏛️', to: '/resident/amenities' },
+  { label: 'Track Events', icon: '🎉', to: '/resident/events' },
   { label: 'My Family', icon: '👪', to: '/resident/family' },
 ]
 
@@ -391,22 +493,170 @@ const timeline = [
   { label: 'Resolved', value: 'Pending completion', done: false },
 ]
 
-const serviceRates = [
-  { name: 'Plumbing Work', price: '₹500 - ₹2000' },
-  { name: 'Pipe Fitting', price: '₹300 - ₹1500' },
-  { name: 'Bathroom Repair', price: '₹800 - ₹3000' },
-]
+const serviceRates = computed(() => {
+  const provider = selectedProvider.value
+  if (!provider) return []
+
+  const category = backendServiceCategories.value.find(
+    (item) => Number(item.id) === Number(provider.category_id),
+  )
+  const categoryName = String(category?.name || '').trim().toLowerCase()
+  const matched = serviceProviders.find(
+    (item) => String(item.category || '').trim().toLowerCase() === categoryName,
+  )
+
+  if (matched?.services?.length) {
+    return matched.services
+  }
+
+  if (provider.service_description) {
+    return [{ name: provider.business_name || 'Service', price: 'Price on request' }]
+  }
+
+  return []
+})
 
 const availability = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const calendarDays = days(30)
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00']
 
-
-function submitComplaint() {
-  notify.success('Complaint submitted successfully')
-  complaintForm.title = ''
-  complaintForm.description = ''
+async function submitComplaint() {
+  try {
+    await authStore.createComplaint({
+      subject: String(complaintForm.title || '').trim(),
+      description: String(complaintForm.description || '').trim(),
+      category: complaintForm.category,
+      priority: 'medium',
+    })
+    notify.success('Complaint submitted successfully')
+    complaintForm.title = ''
+    complaintForm.description = ''
+    backendComplaints.value = await authStore.listComplaints()
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Failed to submit complaint')
+  }
 }
+
+function formatEventMeta(event) {
+  const date = event.date || event.event_date || '-'
+  const time = event.time || event.start_time || '-'
+  const venue = event.venue || '-'
+  return `${date} · ${time} · ${venue}`
+}
+
+function hasProviderForCategory(categoryId) {
+  return backendProviders.value.some((provider) => Number(provider.category_id) === Number(categoryId))
+}
+
+function providerRouteForCategory(categoryId) {
+  const provider = backendProviders.value.find((item) => Number(item.category_id) === Number(categoryId))
+  if (!provider) return '/resident/services'
+  return `/resident/services/provider/${provider.id}`
+}
+
+async function loadResidentData() {
+  try {
+    if (!authStore.user && authStore.token) {
+      await authStore.fetchMe()
+    }
+
+    if (authStore.user) {
+      profileForm.full_name = authStore.user.full_name || authStore.user.name || ''
+      profileForm.phone = authStore.user.phone || ''
+      profileForm.email = authStore.user.email || ''
+    }
+
+    if (authStore.token) {
+      const [
+        eventsResult,
+        noticesResult,
+        complaintsResult,
+        providersResult,
+        categoriesResult,
+        bookingsResult,
+      ] = await Promise.allSettled([
+        authStore.listEvents(),
+        authStore.listNotices(),
+        authStore.listComplaints(),
+        authStore.listProviders(),
+        authStore.listServiceCategories(),
+        authStore.listBookings(),
+      ])
+
+      if (eventsResult.status === 'fulfilled') backendEvents.value = eventsResult.value
+      if (noticesResult.status === 'fulfilled') backendNotices.value = noticesResult.value
+      if (complaintsResult.status === 'fulfilled') backendComplaints.value = complaintsResult.value
+      if (providersResult.status === 'fulfilled') backendProviders.value = providersResult.value
+      if (categoriesResult.status === 'fulfilled') backendServiceCategories.value = categoriesResult.value
+      if (bookingsResult.status === 'fulfilled') backendBookings.value = bookingsResult.value
+    }
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to load resident data')
+  }
+}
+
+async function saveProfile() {
+  try {
+    await authStore.updateMe({
+      full_name: String(profileForm.full_name || '').trim(),
+      phone: String(profileForm.phone || '').trim(),
+    })
+    isEditingProfile.value = false
+    notify.success('Profile updated successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Profile update failed')
+  }
+}
+
+async function joinEvent(eventId) {
+  if (!eventId) {
+    notify.error('Invalid event selection')
+    return
+  }
+  try {
+    await authStore.registerEvent(eventId)
+    const next = new Set(joinedEventIds.value)
+    next.add(eventId)
+    joinedEventIds.value = next
+    notify.success('Event booked successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Event booking failed')
+  }
+}
+
+async function bookServiceNow() {
+  if (!selectedProvider.value?.id) {
+    notify.error('No provider selected')
+    return
+  }
+
+  try {
+    await authStore.createBooking({
+      provider_id: selectedProvider.value.id,
+      request_notes: 'Booking created from resident portal',
+    })
+    backendBookings.value = await authStore.listBookings()
+    notify.success('Service booking created successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to create booking')
+  }
+}
+
+async function leaveEvent(eventId) {
+  try {
+    await authStore.unregisterEvent(eventId)
+    const next = new Set(joinedEventIds.value)
+    next.delete(eventId)
+    joinedEventIds.value = next
+    notify.success('Event booking cancelled')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to cancel event booking')
+  }
+}
+
+onMounted(() => {
+  loadResidentData()
+})
 </script>
 
 <style scoped>
@@ -438,7 +688,6 @@ function submitComplaint() {
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: var(--space-4); }
 .calendar-day { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-gray-50); border: 1px solid var(--color-border); }
 .calendar-day.active { background: var(--color-primary); color: white; }
-
 .detail-list { display: grid; gap: var(--space-3); }
 .detail-row { display: flex; justify-content: space-between; gap: var(--space-4); }
 .timeline-row { display: flex; gap: var(--space-3); margin-top: var(--space-4); }

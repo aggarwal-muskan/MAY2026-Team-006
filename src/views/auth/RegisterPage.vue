@@ -63,12 +63,16 @@ function validate() {
   return Object.keys(errors).length === 0
 }
 
-function handleRegister() {
+async function handleRegister() {
   if (!validate()) return
-  authStore.register(form)
-  notify.success('Registration successful! Welcome to SocioNeed.')
-  const route = form.role === 'provider' ? '/provider/dashboard' : '/resident/dashboard'
-  router.push(route)
+  try {
+    await authStore.register(form)
+    notify.success('Registration successful! Welcome to SocioNeed.')
+    const route = form.role === 'provider' ? '/provider/dashboard' : '/resident/dashboard'
+    router.push(route)
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Registration failed. Please try again.')
+  }
 }
 </script>
 <style scoped>

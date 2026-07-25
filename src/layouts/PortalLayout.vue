@@ -117,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -132,6 +132,7 @@ const authStore = useAuthStore()
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
 const searchQuery = ref('')
+const residentBadgeCounts = ref({ complaints: 0, notices: 0 })
 
 const userName = computed(() => authStore.user?.name || 'Guest User')
 const userInitials = computed(() => authStore.userInitials || 'G')
@@ -160,6 +161,19 @@ function handleLogout() {
   router.push('/login')
 }
 
+async function loadResidentBadgeCounts() {
+  if (props.sidebarType !== 'resident' || !authStore.token) return
+  try {
+    const complaintsPayload = await authStore.listComplaints({ withMeta: true })
+    const noticesPayload = await authStore.listNotices({ withMeta: true })
+    residentBadgeCounts.value.complaints = complaintsPayload?.pagination?.total ?? complaintsPayload?.items?.length ?? 0
+    residentBadgeCounts.value.notices = noticesPayload?.pagination?.total ?? noticesPayload?.items?.length ?? 0
+  } catch {
+    residentBadgeCounts.value.complaints = 0
+    residentBadgeCounts.value.notices = 0
+  }
+}
+
 // ── Sidebar Items by Role ──
 const sidebarConfigs = {
   resident: [
@@ -167,7 +181,7 @@ const sidebarConfigs = {
       label: 'Main',
       items: [
         { label: 'Dashboard', to: '/resident/dashboard', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>' },
-        { label: 'My Complaints', to: '/resident/complaints', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>', badge: 3 },
+        { label: 'My Complaints', to: '/resident/complaints', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>', badge: residentBadgeCounts.value.complaints },
         { label: 'Book Amenities', to: '/resident/amenities', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' },
         { label: 'Browse Services', to: '/resident/services', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>' },
       ]
@@ -176,8 +190,7 @@ const sidebarConfigs = {
       label: 'Community',
       items: [
         { label: 'Events', to: '/resident/events', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>' },
-        { label: 'Notices', to: '/resident/notices', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>', badge: 7 },
-
+        { label: 'Notices', to: '/resident/notices', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>', badge: residentBadgeCounts.value.notices },
         { label: 'My Family', to: '/resident/family', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>' },
       ]
     },
@@ -231,7 +244,6 @@ const sidebarConfigs = {
     {
       label: 'Monitoring',
       items: [
-
         { label: 'Vehicle Logs', to: '/security/vehicles', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>' },
         { label: 'Patrol Log', to: '/security/patrol', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>' },
       ]
@@ -247,6 +259,17 @@ const sidebarConfigs = {
 }
 
 const sidebarItems = computed(() => sidebarConfigs[props.sidebarType] || sidebarConfigs.resident)
+
+onMounted(() => {
+  loadResidentBadgeCounts()
+})
+
+watch(
+  () => route.fullPath,
+  () => {
+    loadResidentBadgeCounts()
+  }
+)
 </script>
 
 <style scoped>

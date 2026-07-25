@@ -42,7 +42,6 @@ const routes = [
   { path: '/resident/booking-calendar', name: 'BookingCalendar', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'booking-calendar' } },
   { path: '/resident/my-bookings', name: 'MyBookings', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'my-bookings' } },
   { path: '/resident/amenities', name: 'BookAmenities', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'book-amenities' } },
-
   { path: '/resident/family', name: 'MyFamily', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'family' } },
   { path: '/resident/notifications', name: 'ResidentNotifications', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'notifications' } },
   { path: '/resident/profile', name: 'ResidentProfile', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'profile' } },
@@ -60,7 +59,6 @@ const routes = [
   { path: '/admin/notices/create', name: 'CreateNotice', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'create-notice' } },
   { path: '/admin/events', name: 'AdminEvents', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'events' } },
   { path: '/admin/events/create', name: 'CreateEvent', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'create-event' } },
-
   { path: '/admin/analytics', name: 'Analytics', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'analytics' } },
   { path: '/admin/settings', name: 'AdminSettings', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'settings' } },
   { path: '/admin/roles', name: 'RolesPermissions', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'roles' } },
@@ -86,7 +84,6 @@ const routes = [
   // ── Security Routes ──
   { path: '/security/dashboard', name: 'SecurityDashboard', component: SecurityScreen, meta: { layout: 'portal', role: 'security', sidebar: 'security', page: 'dashboard' } },
   { path: '/security/visitor-entry', name: 'VisitorEntry', component: SecurityScreen, meta: { layout: 'portal', role: 'security', sidebar: 'security', page: 'visitor-entry' } },
-
   { path: '/security/vehicles', name: 'VehicleLogs', component: SecurityScreen, meta: { layout: 'portal', role: 'security', sidebar: 'security', page: 'vehicle-logs' } },
   { path: '/security/patrol', name: 'PatrolLog', component: SecurityScreen, meta: { layout: 'portal', role: 'security', sidebar: 'security', page: 'patrol-log' } },
   { path: '/security/visitor-approval', name: 'VisitorApproval', component: SecurityScreen, meta: { layout: 'portal', role: 'security', sidebar: 'security', page: 'visitor-approval' } },

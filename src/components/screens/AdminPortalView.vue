@@ -15,15 +15,15 @@
         <section class="card chart-card">
           <h3 class="card-title">Complaints Trend</h3>
           <div class="bar-chart">
-            <div v-for="point in analyticsData.complaintsOverTime" :key="point.month" class="bar-item">
+            <div v-for="point in adminAnalytics.complaintsOverTime" :key="point.month" class="bar-item">
               <span class="bar" :style="{ height: `${point.count * 4}px` }"></span>
               <small>{{ point.month }}</small>
             </div>
           </div>
         </section>
         <section class="card chart-card">
-          <h3 class="card-title">Bookings by Service</h3>
-          <div v-for="(value, key) in analyticsData.bookingsByService" :key="key" class="progress-row">
+          <h3 class="card-title">Bookings by Status</h3>
+          <div v-for="(value, key) in adminAnalytics.bookingsByService" :key="key" class="progress-row">
             <span>{{ key }}</span>
             <div class="progress"><span :style="{ width: `${Math.min(value * 4, 100)}%` }"></span></div>
           </div>
@@ -40,7 +40,7 @@
       <div class="card table-wrap">
         <table class="data-table">
           <thead><tr><th>Name</th><th>Flat No</th><th>Phone</th><th>Email</th><th>Status</th></tr></thead>
-          <tbody><tr v-for="resident in residents" :key="resident.id"><td>{{ resident.name }}</td><td>{{ resident.flat }}</td><td>{{ resident.phone }}</td><td>{{ resident.email }}</td><td><span class="badge" :class="badgeClass(resident.status)">{{ resident.status }}</span></td></tr></tbody>
+          <tbody><tr v-for="resident in residentRows" :key="resident.id"><td>{{ resident.name }}</td><td>{{ resident.flat }}</td><td>{{ resident.phone }}</td><td>{{ resident.email }}</td><td><span class="badge" :class="badgeClass(resident.status)">{{ resident.status }}</span></td></tr></tbody>
         </table>
       </div>
     </template>
@@ -52,42 +52,39 @@
 
     <template v-else-if="page === 'providers'">
       <div class="screen-header row-between"><div><h1>Providers</h1><p>Manage service provider listings.</p></div><button class="btn btn-primary">Add Provider</button></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Service</th><th>Phone</th><th>Rating</th></tr></thead><tbody><tr v-for="provider in serviceProviders" :key="provider.id"><td>{{ provider.name }}</td><td>{{ provider.category }}</td><td>{{ provider.phone }}</td><td>{{ provider.rating }}</td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Service</th><th>Phone</th><th>Rating</th></tr></thead><tbody><tr v-for="provider in providerRows" :key="provider.id"><td>{{ provider.business_name || provider.name }}</td><td>{{ provider.category || provider.category_id }}</td><td>{{ provider.phone || '-' }}</td><td>{{ provider.rating_avg || provider.rating || 0 }}</td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'complaints'">
       <div class="screen-header"><h1>Complaints Management</h1><p>Assign and track complaint resolution.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Resident</th><th>Status</th><th>Assign</th></tr></thead><tbody><tr v-for="complaint in complaints" :key="complaint.id"><td>{{ complaint.id }}</td><td>{{ complaint.title }}</td><td>{{ complaint.resident }}</td><td><span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span></td><td><select><option>Maintenance Team</option><option>Security Team</option><option>Housekeeping Team</option></select></td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Resident</th><th>Status</th><th>Assign</th></tr></thead><tbody><tr v-for="complaint in complaintRows" :key="complaint.id"><td>{{ complaint.id }}</td><td>{{ complaint.subject || complaint.title }}</td><td>{{ complaint.raised_by_user_id || complaint.resident || '-' }}</td><td><span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span></td><td><div class="row-actions"><select v-model="complaintAssignments[complaint.id]"><option disabled value="">Select user</option><option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option></select><button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">Assign</button></div></td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'notices'">
       <div class="screen-header row-between"><div><h1>Notice Management</h1><p>Publish, edit, or remove notices.</p></div><router-link to="/admin/notices/create" class="btn btn-primary">Create Notice</router-link></div>
-      <div class="stack"><article v-for="notice in notices" :key="notice.id" class="card notice-row"><div><strong>{{ notice.title }}</strong><p>{{ notice.content }}</p></div><div class="row-actions"><button class="btn btn-outline btn-sm">Edit</button><button class="btn btn-danger btn-sm">Delete</button></div></article></div>
+      <div class="stack"><article v-for="notice in noticeRows" :key="notice.id" class="card notice-row"><div><strong>{{ notice.title }}</strong><p>{{ notice.body || notice.content }}</p></div><div class="row-actions"><button class="btn btn-danger btn-sm" @click="removeNotice(notice.id)">Delete</button></div></article></div>
     </template>
 
     <template v-else-if="page === 'create-notice'">
       <div class="screen-header"><h1>Create Notice</h1><p>Write and publish a new society notice.</p></div>
-      <form class="card form-card" @submit.prevent="notify.success('Notice published')"><label class="form-group"><span class="form-label">Title</span><input type="text" /></label><label class="form-group"><span class="form-label">Category</span><select><option>Maintenance</option><option>Event</option><option>Rules</option><option>Security</option></select></label><label class="form-group"><span class="form-label">Content</span><textarea rows="5"></textarea></label><button class="btn btn-primary">Publish</button></form>
+      <form class="card form-card" @submit.prevent="submitNotice"><label class="form-group"><span class="form-label">Title</span><input v-model="noticeForm.title" type="text" /></label><label class="form-group"><span class="form-label">Category</span><select v-model="noticeForm.notice_type"><option value="maintenance">Maintenance</option><option value="event">Event</option><option value="rules">Rules</option><option value="security">Security</option></select></label><label class="form-group"><span class="form-label">Priority</span><select v-model="noticeForm.priority"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label class="form-group"><span class="form-label">Content</span><textarea v-model="noticeForm.body" rows="5"></textarea></label><button class="btn btn-primary">Publish</button></form>
     </template>
 
     <template v-else-if="page === 'events'">
       <div class="screen-header row-between"><div><h1>Events Management</h1><p>Monitor event listings and attendance.</p></div><router-link to="/admin/events/create" class="btn btn-primary">Create Event</router-link></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Event</th><th>Date</th><th>Venue</th><th>Status</th></tr></thead><tbody><tr v-for="event in events" :key="event.id"><td>{{ event.title }}</td><td>{{ event.date }}</td><td>{{ event.venue }}</td><td><span class="badge badge-success">Scheduled</span></td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Event</th><th>Date</th><th>Venue</th><th>Status</th><th>Action</th></tr></thead><tbody><tr v-for="event in eventRows" :key="event.id"><td>{{ event.title }}</td><td>{{ event.event_date || event.date }}</td><td>{{ event.venue }}</td><td><span class="badge" :class="badgeClass(event.status || 'scheduled')">{{ event.status || 'scheduled' }}</span></td><td><button class="btn btn-danger btn-sm" @click="removeEvent(event.id)">Delete</button></td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'create-event'">
       <div class="screen-header"><h1>Create Event</h1><p>Set up a new community activity.</p></div>
-      <form class="card form-card" @submit.prevent="notify.success('Event created')"><div class="form-grid two-col"><label class="form-group"><span class="form-label">Event Name</span><input type="text" /></label><label class="form-group"><span class="form-label">Category</span><input type="text" /></label></div><div class="form-grid two-col"><label class="form-group"><span class="form-label">Date / Time</span><input type="text" /></label><label class="form-group"><span class="form-label">Venue</span><input type="text" /></label></div><label class="form-group"><span class="form-label">Description</span><textarea rows="5"></textarea></label><button class="btn btn-primary">Create Event</button></form>
+      <form class="card form-card" @submit.prevent="submitEvent"><div class="form-grid two-col"><label class="form-group"><span class="form-label">Event Name</span><input v-model="eventForm.title" type="text" /></label><label class="form-group"><span class="form-label">Date</span><input v-model="eventForm.event_date" type="date" /></label></div><div class="form-grid two-col"><label class="form-group"><span class="form-label">Start Time</span><input v-model="eventForm.start_time" type="time" /></label><label class="form-group"><span class="form-label">Venue</span><input v-model="eventForm.venue" type="text" /></label></div><label class="form-group"><span class="form-label">Description</span><textarea v-model="eventForm.description" rows="5"></textarea></label><button class="btn btn-primary">Create Event</button></form>
     </template>
-
-
-
 
     <template v-else-if="page === 'analytics'">
       <div class="screen-header"><h1>Analytics</h1><p>Usage, occupancy, and event trends.</p></div>
       <div class="content-grid two-col">
-        <section class="card"><h3 class="card-title">Complaints</h3><div class="bar-chart"><div v-for="point in analyticsData.complaintsOverTime" :key="point.month" class="bar-item"><span class="bar" :style="{ height: `${point.count * 4}px` }"></span><small>{{ point.month }}</small></div></div></section>
-        <section class="card"><h3 class="card-title">Occupancy</h3><div v-for="(value, key) in analyticsData.bookingsByService" :key="key" class="progress-row"><span>{{ key }}</span><div class="progress"><span :style="{ width: `${value * 3}%` }"></span></div></div></section>
+        <section class="card"><h3 class="card-title">Complaints</h3><div class="bar-chart"><div v-for="point in adminAnalytics.complaintsOverTime" :key="point.month" class="bar-item"><span class="bar" :style="{ height: `${point.count * 4}px` }"></span><small>{{ point.month }}</small></div></div></section>
+        <section class="card"><h3 class="card-title">Complaint Status</h3><div v-for="(value, key) in adminAnalytics.complaintsByStatus" :key="key" class="progress-row"><span>{{ key }}</span><div class="progress"><span :style="{ width: `${Math.min(value * 5, 100)}%` }"></span></div></div></section>
       </div>
     </template>
 
@@ -119,33 +116,98 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import {
-  analyticsData,
-  complaints,
-  events,
   maintenanceBills,
-  notices,
-
-  residents,
-  serviceProviders,
   systemLogs,
   tenants,
 } from '@/data/mockData'
 import { badgeClass, currency } from './screenUtils'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const notify = useNotificationStore()
 const page = computed(() => route.meta.page || 'dashboard')
 
-const adminStats = [
-  { label: 'Total Residents', value: 250 },
-  { label: 'Pending Complaints', value: 15 },
-  { label: 'Bookings Today', value: 28 },
-  { label: 'Upcoming Events', value: 35 },
-]
+const backendUsers = ref([])
+const backendProviders = ref([])
+const backendComplaints = ref([])
+const backendNotices = ref([])
+const backendEvents = ref([])
+const adminDashboardStats = ref({})
+const complaintAssignments = ref({})
+const bookingStatusBreakdown = ref({})
+
+const noticeForm = reactive({ title: '', body: '', notice_type: 'maintenance', priority: 'normal' })
+const eventForm = reactive({ title: '', description: '', event_date: '', start_time: '', venue: '' })
+
+const adminStats = computed(() => [
+  { label: 'Total Residents', value: adminDashboardStats.value.total_residents ?? 0 },
+  { label: 'Pending Complaints', value: adminDashboardStats.value.pending_complaints ?? 0 },
+  { label: 'Bookings Today', value: adminDashboardStats.value.todays_bookings ?? 0 },
+  { label: 'Upcoming Events', value: adminDashboardStats.value.upcoming_events ?? 0 },
+])
+
+const residentRows = computed(() => {
+  return backendUsers.value
+    .filter((user) => ['owner', 'tenant'].includes(user.role))
+    .map((user) => ({
+      id: user.id,
+      name: user.full_name || user.name,
+      flat: user.unit_number || user.flat || '-',
+      phone: user.phone || '-',
+      email: user.email,
+      status: user.status || 'active',
+    }))
+})
+
+const providerRows = computed(() => {
+  return backendProviders.value
+})
+
+const complaintRows = computed(() => {
+  return backendComplaints.value
+})
+
+const noticeRows = computed(() => {
+  return backendNotices.value
+})
+
+const eventRows = computed(() => {
+  return backendEvents.value
+})
+
+const assignableUsers = computed(() => {
+  return backendUsers.value.map((user) => ({ id: user.id, name: user.full_name || user.name || `User #${user.id}` }))
+})
+
+const adminAnalytics = computed(() => {
+  const statusCounts = backendComplaints.value.reduce((acc, complaint) => {
+    const key = complaint.status || 'open'
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+
+  const monthCounts = backendComplaints.value.reduce((acc, complaint) => {
+    if (!complaint.created_at) return acc
+    const date = new Date(complaint.created_at)
+    if (Number.isNaN(date.getTime())) return acc
+    const month = date.toLocaleString('en-US', { month: 'short' })
+    acc[month] = (acc[month] || 0) + 1
+    return acc
+  }, {})
+
+  const complaintsOverTime = Object.entries(monthCounts).map(([month, count]) => ({ month, count }))
+
+  return {
+    complaintsOverTime,
+    bookingsByService: bookingStatusBreakdown.value,
+    complaintsByStatus: statusCounts,
+  }
+})
 
 const roles = [
   { name: 'Resident', scope: 'Community access', access: 'Notices, complaints, bookings' },
@@ -156,8 +218,106 @@ const roles = [
 
 const reports = [
   { title: 'Monthly Summary', description: 'Residents, complaints, and bookings overview.' },
+  { title: 'Security Snapshot', description: 'Visitor activity and gate operations summary.' },
   { title: 'Notice Archive', description: 'Published notices and event communications.' },
 ]
+
+async function loadAdminData() {
+  try {
+    if (!authStore.user && authStore.token) {
+      await authStore.fetchMe()
+    }
+    if (authStore.token) {
+      backendUsers.value = await authStore.listUsers()
+      backendProviders.value = await authStore.listProviders()
+      backendComplaints.value = await authStore.listComplaints()
+      backendNotices.value = await authStore.listNotices()
+      backendEvents.value = await authStore.listEvents()
+      adminDashboardStats.value = await authStore.getAdminDashboardStats()
+      bookingStatusBreakdown.value = await authStore.getBookingsAnalytics()
+    }
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to load admin data')
+  }
+}
+
+async function assignComplaintToUser(complaint) {
+  const selectedUserId = Number(complaintAssignments.value[complaint.id])
+  if (!selectedUserId) {
+    notify.error('Select a user to assign the complaint')
+    return
+  }
+
+  try {
+    await authStore.assignComplaint(complaint.id, selectedUserId)
+    backendComplaints.value = await authStore.listComplaints()
+    notify.success('Complaint assigned successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to assign complaint')
+  }
+}
+
+async function submitNotice() {
+  try {
+    await authStore.createNotice({
+      title: String(noticeForm.title || '').trim(),
+      body: String(noticeForm.body || '').trim(),
+      notice_type: noticeForm.notice_type,
+      priority: noticeForm.priority,
+    })
+    backendNotices.value = await authStore.listNotices()
+    noticeForm.title = ''
+    noticeForm.body = ''
+    notify.success('Notice published')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to publish notice')
+  }
+}
+
+async function removeNotice(noticeId) {
+  try {
+    await authStore.deleteNotice(noticeId)
+    backendNotices.value = await authStore.listNotices()
+    notify.success('Notice deleted')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to delete notice')
+  }
+}
+
+async function submitEvent() {
+  try {
+    await authStore.createEvent({
+      title: String(eventForm.title || '').trim(),
+      description: String(eventForm.description || '').trim(),
+      event_date: eventForm.event_date,
+      start_time: eventForm.start_time,
+      venue: String(eventForm.venue || '').trim(),
+    })
+    backendEvents.value = await authStore.listEvents()
+    eventForm.title = ''
+    eventForm.description = ''
+    eventForm.event_date = ''
+    eventForm.start_time = ''
+    eventForm.venue = ''
+    notify.success('Event created')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to create event')
+  }
+}
+
+async function removeEvent(eventId) {
+  try {
+    await authStore.deleteEvent(eventId)
+    backendEvents.value = await authStore.listEvents()
+    notify.success('Event deleted')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to delete event')
+  }
+}
+
+onMounted(() => {
+  loadAdminData()
+})
 </script>
 
 <style scoped>
@@ -179,7 +339,6 @@ const reports = [
 .progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--color-secondary), var(--color-info)); }
 .toolbar { margin-bottom: var(--space-2); }
 .toolbar input { width: 100%; }
-
 .notice-row, .report-card { display: grid; gap: var(--space-3); }
 .row-actions { display: flex; gap: var(--space-2); }
 .form-card { display: grid; gap: var(--space-4); }

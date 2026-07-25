@@ -1,7 +1,7 @@
 <template>
   <div class="portal-screen security-screen">
     <template v-if="page === 'dashboard'">
-      <div class="screen-header"><h1>Security Dashboard</h1><p>Monitor visitor flow, patrol activity, and parking access.</p></div>
+      <div class="screen-header"><h1>Security Dashboard</h1><p>Monitor visitor flow, patrol activity, and incident response.</p></div>
       <div class="stat-grid"><div v-for="stat in securityStats" :key="stat.label" class="card stat-card"><div class="stat-label">{{ stat.label }}</div><div class="stat-value">{{ stat.value }}</div></div></div>
       <div class="content-grid two-col"><section class="card"><h3 class="card-title">Recent Entries</h3><div v-for="entry in visitorLogs.slice(0, 4)" :key="entry.id" class="list-row"><div><strong>{{ entry.name }}</strong><p>{{ entry.purpose }} · {{ entry.flat }}</p></div><span class="badge" :class="badgeClass(entry.status)">{{ entry.status }}</span></div></section><section class="card"><h3 class="card-title">Quick Actions</h3><div class="chip-row"><router-link to="/security/visitor-entry" class="chip-link">Visitor Entry</router-link><router-link to="/security/vehicles" class="chip-link">Vehicle Logs</router-link></div></section></div>
     </template>
@@ -10,9 +10,6 @@
       <div class="screen-header"><h1>Visitor Entry</h1><p>Log visitors and approve access.</p></div>
       <div class="content-grid two-col"><form class="card form-card" @submit.prevent="notify.success('Visitor entry saved')"><label class="form-group"><span class="form-label">Name</span><input type="text" /></label><label class="form-group"><span class="form-label">Purpose</span><input type="text" /></label><label class="form-group"><span class="form-label">Flat Visiting</span><input type="text" /></label><label class="form-group"><span class="form-label">Entry Time</span><input type="text" /></label><button class="btn btn-primary">Save Entry</button></form><section class="card table-wrap"><h3 class="card-title">Recent Visitor Log</h3><table class="data-table"><thead><tr><th>Name</th><th>Purpose</th><th>Status</th></tr></thead><tbody><tr v-for="entry in visitorLogs" :key="entry.id"><td>{{ entry.name }}</td><td>{{ entry.purpose }}</td><td><span class="badge" :class="badgeClass(entry.status)">{{ entry.status }}</span></td></tr></tbody></table></section></div>
     </template>
-
-
-
 
     <template v-else-if="page === 'vehicle-logs'">
       <div class="screen-header"><h1>Vehicle Logs</h1><p>Search entry and exit records by vehicle number.</p></div>
@@ -78,7 +75,6 @@ const patrolItems = [
 .list-row:last-child, .patrol-row:last-child, .alert-row:last-child { border-bottom: none; }
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .chip-link { padding: 6px 12px; border-radius: var(--radius-full); background: var(--color-gray-100); color: var(--color-text-secondary); text-decoration: none; }
-
 .table-wrap { overflow-x: auto; }
 .form-card { display: grid; gap: var(--space-4); }
 @media (max-width: 960px) { .stat-grid, .content-grid.two-col { grid-template-columns: 1fr; } }

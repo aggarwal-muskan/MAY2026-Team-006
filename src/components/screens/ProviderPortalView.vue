@@ -6,40 +6,78 @@
         <div v-for="stat in providerStats" :key="stat.label" class="card stat-card"><div class="stat-label">{{ stat.label }}</div><div class="stat-value">{{ stat.value }}</div></div>
       </div>
       <div class="content-grid two-col">
-        <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="booking in providerBookings.slice(0, 3)" :key="booking.id" class="list-row"><div><strong>{{ booking.customer }}</strong><p>{{ booking.service }} · {{ booking.time }}</p></div><span class="badge" :class="badgeClass(booking.status)">{{ booking.status }}</span></div></section>
+        <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="booking in providerBookingsList.slice(0, 3)" :key="booking.id" class="list-row"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></div></section>
         <section class="card"><h3 class="card-title">Quick Actions</h3><div class="chip-row"><router-link to="/provider/services" class="chip-link">Update Services</router-link><router-link to="/provider/availability" class="chip-link">Edit Availability</router-link><router-link to="/provider/earnings" class="chip-link">View Earnings</router-link></div></section>
       </div>
     </template>
 
     <template v-else-if="page === 'bookings'">
       <div class="screen-header"><h1>Bookings</h1><p>Accept or reject incoming requests.</p></div>
-      <div class="chip-row"><span v-for="tab in ['Pending Requests', 'Booking History']" :key="tab" class="chip">{{ tab }}</span></div>
-      <div class="stack"><article v-for="booking in providerBookings" :key="booking.id" class="card booking-card"><div><strong>{{ booking.customer }}</strong><p>{{ booking.service }} · {{ booking.date }}</p></div><div class="row-actions"><button class="btn btn-secondary btn-sm">Accept</button><button class="btn btn-outline btn-sm">Reject</button></div></article></div>
+      <div class="chip-row">
+        <span class="chip">Pending Requests ({{ pendingRequestsCount }})</span>
+        <span class="chip">Booking History ({{ providerBookingsList.length }})</span>
+      </div>
+      <div class="stack"><article v-for="booking in providerBookingsList" :key="booking.id" class="card booking-card"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><div class="row-actions"><button class="btn btn-secondary btn-sm" @click="acceptProviderBooking(booking.id)">Accept</button><button class="btn btn-outline btn-sm" @click="declineProviderBooking(booking.id)">Reject</button><button class="btn btn-primary btn-sm" @click="completeProviderBooking(booking.id)">Complete</button></div></article></div>
     </template>
 
     <template v-else-if="page === 'availability'">
       <div class="screen-header"><h1>Availability</h1><p>Set working days and time slots.</p></div>
-      <div class="card"><div class="chip-row"><span v-for="day in weekDays" :key="day" class="chip">{{ day }}</span></div><div class="time-grid"><button v-for="slot in timeSlots" :key="slot" class="time-slot">{{ slot }}</button></div></div>
+      <div class="card form-card">
+        <div class="form-grid two-col">
+          <label class="form-group"><span class="form-label">Start</span><input v-model="slotForm.slot_start" type="datetime-local" /></label>
+          <label class="form-group"><span class="form-label">End</span><input v-model="slotForm.slot_end" type="datetime-local" /></label>
+        </div>
+        <button class="btn btn-primary" @click="addAvailabilitySlot">Add Slot</button>
+      </div>
+      <div class="card">
+        <h3 class="card-title">My Slots</h3>
+        <div v-if="providerSlots.length === 0" class="list-row">No slots added yet.</div>
+        <div v-for="slot in providerSlots" :key="slot.id" class="list-row">
+          <div>
+            <strong>{{ formatDateTime(slot.slot_start) }} - {{ formatDateTime(slot.slot_end) }}</strong>
+            <p>{{ slot.is_available ? 'Available' : 'Unavailable' }}</p>
+          </div>
+          <button class="btn btn-danger btn-sm" @click="removeAvailabilitySlot(slot.id)">Delete</button>
+        </div>
+      </div>
     </template>
 
     <template v-else-if="page === 'services'">
-      <div class="screen-header row-between"><div><h1>Services List</h1><p>Manage your service catalog and pricing.</p></div><button class="btn btn-primary">Add Service</button></div>
-      <div class="stack"><article v-for="service in providerServices" :key="service.name" class="card service-row"><div><strong>{{ service.name }}</strong><p>{{ service.price }}</p></div><button class="btn btn-outline btn-sm">Edit</button></article></div>
+      <div class="screen-header row-between"><div><h1>Services List</h1><p>Manage your service catalog and pricing.</p></div><button class="btn btn-primary" @click="saveProviderService">Save Service</button></div>
+      <form class="card form-card" @submit.prevent="saveProviderService">
+        <label class="form-group"><span class="form-label">Business Name</span><input v-model="serviceForm.business_name" type="text" /></label>
+        <label class="form-group"><span class="form-label">Service Description</span><textarea v-model="serviceForm.service_description" rows="4"></textarea></label>
+        <button class="btn btn-primary">Update Service</button>
+      </form>
+
+      <section class="card">
+        <h3 class="card-title">Provided Services</h3>
+        <div v-if="providerServiceItems.length === 0" class="list-row">No services available yet. Add service details and save.</div>
+        <div v-else class="stack">
+          <article v-for="service in providerServiceItems" :key="service.name" class="service-row row-between">
+            <div>
+              <strong>{{ service.name }}</strong>
+              <p>{{ service.description || 'Standard service offering' }}</p>
+            </div>
+            <span class="chip">{{ service.price }}</span>
+          </article>
+        </div>
+      </section>
     </template>
 
     <template v-else-if="page === 'reviews'">
       <div class="screen-header"><h1>Reviews</h1><p>See customer feedback and service quality.</p></div>
-      <div class="content-grid two-col"><section class="card rating-card"><div class="rating-value">4.7</div><div class="stars">★★★★★</div><p>Average rating across recent bookings.</p></section><section class="card"><article v-for="review in reviews" :key="review.id" class="review-row"><strong>{{ review.customer }}</strong><span>{{ stars(review.rating).join(' ') }}</span><p>{{ review.comment }}</p></article></section></div>
+      <div class="content-grid two-col"><section class="card rating-card"><div class="rating-value">{{ Number(providerStatsLive.rating_avg || 0).toFixed(1) }}</div><div class="stars">{{ stars(Math.round(Number(providerStatsLive.rating_avg || 0))).join(' ') }}</div><p>Average rating across recent bookings.</p></section><section class="card"><article v-for="review in providerReviewsList" :key="review.id" class="review-row"><strong>{{ review.customer || review.reviewer_name || 'Resident' }}</strong><span>{{ stars(review.rating).join(' ') }}</span><p>{{ review.comment || review.review_text || 'No comment provided.' }}</p></article><div v-if="providerReviewsList.length === 0" class="list-row">No reviews yet.</div></section></div>
     </template>
 
     <template v-else-if="page === 'earnings'">
       <div class="screen-header"><h1>Earnings</h1><p>Monitor income across the current month and lifetime.</p></div>
-      <div class="stat-grid provider-stats"><div class="card stat-card"><div class="stat-label">This Month</div><div class="stat-value">₹12,450</div></div><div class="card stat-card"><div class="stat-label">Total</div><div class="stat-value">₹1,24,500</div></div></div>
-      <div class="card"><div v-for="entry in earningsBreakdown" :key="entry.label" class="progress-row"><span>{{ entry.label }}</span><div class="progress"><span :style="{ width: `${entry.value}%` }"></span></div></div></div>
+      <div class="stat-grid provider-stats"><div class="card stat-card"><div class="stat-label">This Month</div><div class="stat-value">₹{{ Number(providerEarnings.monthly_earnings || providerEarnings.total_earnings || 0).toLocaleString() }}</div></div><div class="card stat-card"><div class="stat-label">Total</div><div class="stat-value">₹{{ Number(providerEarnings.total_earnings || 0).toLocaleString() }}</div></div></div>
+      <div class="card"><div v-if="earningsBreakdown.length === 0" class="list-row">No earnings breakdown available yet.</div><div v-for="entry in earningsBreakdown" :key="entry.label" class="progress-row"><span>{{ entry.label }}</span><div class="progress"><span :style="{ width: `${entry.value}%` }"></span></div></div></div>
     </template>
 
     <template v-else-if="page === 'profile'">
-      <div class="content-grid two-col"><section class="card profile-card"><div class="avatar avatar-xl">RP</div><h1>Ravi Plumber</h1><p>Plumber · 5 years experience</p><button class="btn btn-outline">Edit</button></section><section class="card"><h3 class="card-title">Contact</h3><p>Phone: 9111222333</p><p>Email: ravi.plumber@email.com</p></section></div>
+      <div class="content-grid two-col"><section class="card profile-card"><div class="avatar avatar-xl">{{ userInitials }}</div><h1>{{ providerName }}</h1><p>{{ providerRoleText }}</p><button class="btn btn-outline">Edit</button></section><section class="card"><h3 class="card-title">Contact</h3><p>Phone: {{ providerPhone }}</p><p>Email: {{ providerEmail }}</p></section></div>
     </template>
 
     <template v-else-if="page === 'notifications'">
@@ -59,12 +97,12 @@
 
     <template v-else-if="page === 'customer-history'">
       <div class="screen-header"><h1>Customer History</h1><p>Past customers and request history.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="booking in providerBookings" :key="booking.id + 'history'"><td>{{ booking.customer }}</td><td>{{ booking.service }}</td><td>{{ booking.date }}</td><td><span class="badge" :class="badgeClass(booking.status)">{{ booking.status }}</span></td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="booking in providerBookingsList" :key="booking.id + 'history'"><td>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</td><td>{{ booking.request_notes || '-' }}</td><td>{{ booking.created_at || '-' }}</td><td><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'completed-jobs'">
       <div class="screen-header"><h1>Completed Jobs</h1><p>Finished work and service outcomes.</p></div>
-      <div class="stack"><article v-for="booking in providerBookings.filter(item => item.status === 'Completed')" :key="booking.id" class="card completed-row"><strong>{{ booking.customer }}</strong><p>{{ booking.service }} · {{ booking.amount }}</p></article></div>
+      <div class="stack"><article v-for="booking in providerBookingsList.filter(item => (item.booking_status || item.status) === 'completed')" :key="booking.id" class="card completed-row"><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || '-' }}</p></article></div>
     </template>
 
     <template v-else-if="page === 'payouts'">
@@ -75,34 +113,264 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { faqs, providerBookings, reviews } from '@/data/mockData'
+import { useAuthStore } from '@/stores/authStore'
+import { useNotificationStore } from '@/stores/notificationStore'
+import { faqs, providerBookings, reviews, serviceProviders } from '@/data/mockData'
 import { badgeClass, stars } from './screenUtils'
 
 const route = useRoute()
+const authStore = useAuthStore()
+const notify = useNotificationStore()
 const page = computed(() => route.meta.page || 'dashboard')
+const backendBookings = ref([])
+const providerStatsLive = ref({})
+const providerProfile = ref(null)
+const providerCategories = ref([])
+const providerSlots = ref([])
+const providerReviewsLive = ref([])
+const providerEarnings = ref({})
+const serviceForm = ref({ business_name: '', service_description: '' })
+const slotForm = ref({ slot_start: '', slot_end: '' })
 
-const providerStats = [
-  { label: 'Today Bookings', value: 3 },
-  { label: 'Pending Requests', value: 2 },
-  { label: 'Completed', value: 18 },
-  { label: 'Rating', value: '4.7' },
-]
+const providerName = computed(() => authStore.user?.name || 'Service Provider')
+const userInitials = computed(() => authStore.userInitials || 'SP')
+const providerEmail = computed(() => authStore.user?.email || '-')
+const providerPhone = computed(() => authStore.user?.phone || '-')
+const providerRoleText = computed(() => (authStore.user?.category ? `${authStore.user.category} Provider` : 'Verified Provider'))
 
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const timeSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00']
-const providerServices = [
-  { name: 'Plumbing Work', price: '₹500 - ₹2000' },
-  { name: 'Pipe Fitting', price: '₹300 - ₹1500' },
-  { name: 'Bathroom Repair', price: '₹800 - ₹3000' },
-]
+const providerBookingsList = computed(() => {
+  if (authStore.token) return backendBookings.value
+  return providerBookings
+})
+
+function bookingStatus(item) {
+  return String(item.booking_status || item.status || '').toLowerCase()
+}
+
+const pendingRequestsCount = computed(() => {
+  return providerBookingsList.value.filter((item) => bookingStatus(item) === 'requested').length
+})
+
+const completedBookingsCount = computed(() => {
+  return providerBookingsList.value.filter((item) => bookingStatus(item) === 'completed').length
+})
+
+const providerCategory = computed(() => {
+  const fromProfile = providerProfile.value?.category_name || providerProfile.value?.category?.name
+  if (fromProfile) return String(fromProfile).trim().toLowerCase()
+
+  const categoryId = Number(providerProfile.value?.category_id)
+  if (categoryId) {
+    const matchedCategory = providerCategories.value.find((item) => Number(item.id) === categoryId)
+    if (matchedCategory?.name) return String(matchedCategory.name).trim().toLowerCase()
+  }
+
+  return String(authStore.user?.category || '').trim().toLowerCase()
+})
+
+const providerServiceItems = computed(() => {
+  const matchedProvider = serviceProviders.find((item) => String(item.category || '').trim().toLowerCase() === providerCategory.value)
+  const services = (matchedProvider?.services || []).map((item) => ({
+    name: item.name,
+    price: item.price,
+    description: `${matchedProvider.category} service`,
+  }))
+
+  if (services.length > 0) {
+    return services
+  }
+
+  const businessName = String(serviceForm.value.business_name || '').trim()
+  const description = String(serviceForm.value.service_description || '').trim()
+  if (!businessName && !description) {
+    return []
+  }
+
+  return [{
+    name: businessName || 'Custom Service',
+    price: 'Price on request',
+    description: description || 'Custom service description',
+  }]
+})
+
+const providerStats = computed(() => [
+  { label: 'Today Bookings', value: providerStatsLive.value.todays_bookings ?? providerBookingsList.value.length },
+  { label: 'Pending Requests', value: pendingRequestsCount.value },
+  { label: 'Completed', value: completedBookingsCount.value },
+  { label: 'Rating', value: providerStatsLive.value.rating_avg ?? '0' },
+])
+
+const providerReviewsList = computed(() => {
+  if (authStore.token) return providerReviewsLive.value
+  return reviews
+})
+
 const providerNotifications = ['New booking from Priya Sharma', 'Cancellation request from Rahul Verma', '2 new review notifications']
-const earningsBreakdown = [
-  { label: 'Plumbing', value: 78 },
-  { label: 'Pipe Fitting', value: 62 },
-  { label: 'Repairs', value: 88 },
-]
+const earningsBreakdown = computed(() => {
+  const list = providerEarnings.value?.monthly_breakdown || []
+  if (!Array.isArray(list) || list.length === 0) return []
+  const maxAmount = Math.max(...list.map((item) => Number(item.amount || 0)), 1)
+  return list.map((item) => ({
+    label: item.label || item.month || 'Period',
+    value: Math.max(4, Math.round((Number(item.amount || 0) / maxAmount) * 100)),
+  }))
+})
+
+async function loadProviderData() {
+  try {
+    if (!authStore.user && authStore.token) {
+      await authStore.fetchMe()
+    }
+    if (authStore.token) {
+      await authStore.ensureProviderProfile()
+
+      const [bookingsResult, statsResult, profileResult, categoriesResult] = await Promise.allSettled([
+        authStore.listBookings(),
+        authStore.getProviderDashboardStats(),
+        authStore.getMyProviderProfile(),
+        authStore.listServiceCategories(),
+      ])
+
+      if (bookingsResult.status === 'fulfilled') {
+        backendBookings.value = bookingsResult.value
+      }
+      if (statsResult.status === 'fulfilled') {
+        providerStatsLive.value = statsResult.value
+      }
+      if (profileResult.status === 'fulfilled') {
+        providerProfile.value = profileResult.value
+        if (providerProfile.value) {
+          serviceForm.value.business_name = providerProfile.value.business_name || ''
+          serviceForm.value.service_description = providerProfile.value.service_description || ''
+          const [slotsResult, reviewsResult, earningsResult] = await Promise.allSettled([
+            authStore.listProviderSlots(providerProfile.value.id),
+            authStore.getProviderReviews(providerProfile.value.id),
+            authStore.getProviderEarnings(providerProfile.value.id),
+          ])
+
+          if (slotsResult.status === 'fulfilled') {
+            providerSlots.value = slotsResult.value
+          }
+          if (reviewsResult.status === 'fulfilled') {
+            providerReviewsLive.value = reviewsResult.value
+          }
+          if (earningsResult.status === 'fulfilled') {
+            providerEarnings.value = earningsResult.value || {}
+          }
+        }
+      }
+
+      if (categoriesResult.status === 'fulfilled') {
+        providerCategories.value = categoriesResult.value || []
+      }
+
+      if (bookingsResult.status === 'rejected' && statsResult.status === 'rejected') {
+        throw bookingsResult.reason || statsResult.reason
+      }
+    }
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to load provider data')
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString()
+}
+
+async function saveProviderService() {
+  try {
+    if (!providerProfile.value?.id) {
+      notify.error('Provider profile not found')
+      return
+    }
+
+    const updated = await authStore.updateProvider(providerProfile.value.id, {
+      business_name: String(serviceForm.value.business_name || '').trim(),
+      service_description: String(serviceForm.value.service_description || '').trim(),
+    })
+    providerProfile.value = updated
+    notify.success('Service details updated')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to update service details')
+  }
+}
+
+async function addAvailabilitySlot() {
+  try {
+    if (!providerProfile.value?.id) {
+      notify.error('Provider profile not found')
+      return
+    }
+    if (!slotForm.value.slot_start || !slotForm.value.slot_end) {
+      notify.error('Start and end date/time are required')
+      return
+    }
+
+    await authStore.createProviderSlot({
+      provider_id: providerProfile.value.id,
+      slot_start: new Date(slotForm.value.slot_start).toISOString(),
+      slot_end: new Date(slotForm.value.slot_end).toISOString(),
+      is_available: true,
+    })
+    providerSlots.value = await authStore.listProviderSlots(providerProfile.value.id)
+    slotForm.value.slot_start = ''
+    slotForm.value.slot_end = ''
+    notify.success('Availability slot added')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to add availability slot')
+  }
+}
+
+async function removeAvailabilitySlot(slotId) {
+  try {
+    await authStore.deleteProviderSlot(slotId)
+    if (providerProfile.value?.id) {
+      providerSlots.value = await authStore.listProviderSlots(providerProfile.value.id)
+    }
+    notify.success('Availability slot removed')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to remove availability slot')
+  }
+}
+
+async function acceptProviderBooking(bookingId) {
+  try {
+    await authStore.acceptBooking(bookingId)
+    backendBookings.value = await authStore.listBookings()
+    notify.success('Booking accepted')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to accept booking')
+  }
+}
+
+async function declineProviderBooking(bookingId) {
+  try {
+    await authStore.declineBooking(bookingId)
+    backendBookings.value = await authStore.listBookings()
+    notify.success('Booking rejected')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to reject booking')
+  }
+}
+
+async function completeProviderBooking(bookingId) {
+  try {
+    await authStore.completeBooking(bookingId)
+    backendBookings.value = await authStore.listBookings()
+    notify.success('Booking marked complete')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to complete booking')
+  }
+}
+
+onMounted(() => {
+  loadProviderData()
+})
 </script>
 
 <style scoped>
