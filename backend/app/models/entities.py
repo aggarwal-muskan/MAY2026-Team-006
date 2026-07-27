@@ -28,6 +28,33 @@ class User(db.Model, TimestampMixin, SerializerMixin):
 
     society = db.relationship("Society", backref=db.backref("users", lazy=True))
 
+    def __init__(
+        self,
+        society_id: int | None = None,
+        role: str | None = None,
+        full_name: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        password_hash: str | None = None,
+        status: str = "active",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        if society_id is not None:
+            self.society_id = society_id
+        if role is not None:
+            self.role = role
+        if full_name is not None:
+            self.full_name = full_name
+        if email is not None:
+            self.email = email
+        if phone is not None:
+            self.phone = phone
+        if password_hash is not None:
+            self.password_hash = password_hash
+        if status is not None:
+            self.status = status
+
 
 class Unit(db.Model, TimestampMixin, SerializerMixin):
     __tablename__ = "units"
