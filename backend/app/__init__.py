@@ -5,7 +5,9 @@ from flask import Flask
 
 from app.api import create_api_blueprint
 from app.core.config import Config
+from app.core.error_handlers import register_error_handlers
 from app.core.extensions import cors, db, jwt, migrate
+from app.core.responses import fail
 from app.services.seed_service import seed_initial_data
 
 
@@ -23,9 +25,30 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
+    @jwt.unauthorized_loader
+    def on_unauthorized(reason):
+        return fail(reason or "Missing authorization token", "UNAUTHORIZED", 401)
+
+    @jwt.invalid_token_loader
+    def on_invalid_token(reason):
+        return fail(reason or "Invalid authorization token", "UNAUTHORIZED", 401)
+
+    @jwt.expired_token_loader
+    def on_expired_token(_jwt_header, _jwt_payload):
+        return fail("Token has expired", "TOKEN_EXPIRED", 401)
+
+    @jwt.revoked_token_loader
+    def on_revoked_token(_jwt_header, _jwt_payload):
+        return fail("Token has been revoked", "TOKEN_REVOKED", 401)
+
+    @jwt.needs_fresh_token_loader
+    def on_needs_fresh_token(_jwt_header, _jwt_payload):
+        return fail("Fresh token required", "FRESH_TOKEN_REQUIRED", 401)
+
     from app import models  # noqa: F401
 
     app.register_blueprint(create_api_blueprint())
+    register_error_handlers(app)
 
     @app.get("/health")
     def health_check():
