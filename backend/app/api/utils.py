@@ -2,6 +2,7 @@
 
 from flask_jwt_extended import get_jwt_identity
 
+from app.core.error_handlers import ValidationError
 from app.core.extensions import db
 from app.models import User
 
@@ -18,7 +19,10 @@ def parse_date(value):
         return None
     if isinstance(value, date):
         return value
-    return datetime.fromisoformat(value).date()
+    try:
+        return datetime.fromisoformat(value).date()
+    except (TypeError, ValueError) as error:
+        raise ValidationError(f"Invalid date format: {value}") from error
 
 
 def parse_datetime(value):
@@ -26,5 +30,8 @@ def parse_datetime(value):
         return None
     if isinstance(value, datetime):
         return value
-    return datetime.fromisoformat(value)
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError) as error:
+        raise ValidationError(f"Invalid datetime format: {value}") from error
 
