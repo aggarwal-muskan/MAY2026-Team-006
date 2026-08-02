@@ -5,7 +5,34 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _get_provider_id(client, admin_token):
+def _get_provider_id(client, admin_token, provider_token=None):
+    if provider_token:
+        me_resp = client.get("/api/users/me", headers=_auth(provider_token))
+        if me_resp.status_code == 200:
+            p_user_id = me_resp.get_json()["data"]["id"]
+            providers_resp = client.get("/api/providers", headers=_auth(admin_token))
+            if providers_resp.status_code == 200:
+                for item in providers_resp.get_json()["data"]["items"]:
+                    if item.get("user_id") == p_user_id:
+                        return item["id"]
+
+            cat_resp = client.get("/api/service-categories", headers=_auth(admin_token))
+            cats = cat_resp.get_json()["data"]
+            c_id = cats[0]["id"] if isinstance(cats, list) and len(cats) > 0 else 1
+
+            create_resp = client.post(
+                "/api/providers",
+                headers=_auth(admin_token),
+                json={
+                    "user_id": p_user_id,
+                    "category_id": c_id,
+                    "business_name": "Test Service Co",
+                    "service_description": "General repairs",
+                },
+            )
+            if create_resp.status_code in (200, 201):
+                return create_resp.get_json()["data"]["id"]
+
     resp = client.get("/api/providers", headers=_auth(admin_token))
     items = resp.get_json()["data"]["items"]
     if len(items) > 0:
@@ -14,7 +41,8 @@ def _get_provider_id(client, admin_token):
     users_resp = client.get("/api/users?role=service_provider", headers=_auth(admin_token))
     p_user_id = users_resp.get_json()["data"]["items"][0]["id"]
     cat_resp = client.get("/api/service-categories", headers=_auth(admin_token))
-    c_id = cat_resp.get_json()["data"][0]["id"]
+    cats = cat_resp.get_json()["data"]
+    c_id = cats[0]["id"] if isinstance(cats, list) and len(cats) > 0 else 1
 
     create_resp = client.post(
         "/api/providers",
@@ -92,7 +120,7 @@ def test_service_slot_creation_and_deletion(client, admin_token):
 
 
 def test_booking_decline_and_cancel_workflow(client, admin_token, resident_token, provider_token):
-    provider_id = _get_provider_id(client, admin_token)
+    provider_id = _get_provider_id(client, admin_token, provider_token)
     ts = datetime.now(UTC).strftime("%H%M%S")
 
     slot1 = client.post(
@@ -146,7 +174,7 @@ def test_booking_decline_and_cancel_workflow(client, admin_token, resident_token
 
 
 def test_booking_review_full_workflow(client, admin_token, resident_token, provider_token):
-    provider_id = _get_provider_id(client, admin_token)
+    provider_id = _get_provider_id(client, admin_token, provider_token)
     ts = datetime.now(UTC).strftime("%H%M%S")
 
     slot = client.post(

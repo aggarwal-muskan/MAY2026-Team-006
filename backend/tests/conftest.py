@@ -6,8 +6,8 @@ from app.core.extensions import db
 
 class TestConfig:
     TESTING = True
-    SECRET_KEY = "bhargava-test-secret-key-1234"
-    JWT_SECRET_KEY = "bhargava-test-jwt-secret-key-1234"
+    SECRET_KEY = "bhargava-test-secret-key-12345678901234567890"
+    JWT_SECRET_KEY = "bhargava-test-jwt-secret-key-12345678901234567890"
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
