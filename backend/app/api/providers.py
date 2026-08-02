@@ -3,7 +3,7 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
 
-from app.api.utils import current_user, parse_datetime
+from app.api.utils import current_user, parse_date, parse_datetime
 from app.core.extensions import db
 from app.core.responses import fail, ok
 from app.core.security import ROLE_ADMIN, ROLE_SERVICE_PROVIDER, roles_required
@@ -163,7 +163,7 @@ def reject_provider(provider_id):
 def provider_availability(provider_id):
     query = ProviderSlot.query.filter_by(provider_id=provider_id, is_available=True)
     if request.args.get("date"):
-        d = datetime.fromisoformat(request.args["date"]).date()
+        d = parse_date(request.args["date"])
         query = query.filter(db.func.date(ProviderSlot.slot_start) == d)
     return ok([s.to_dict() for s in query.order_by(ProviderSlot.slot_start.asc()).all()])
 
