@@ -1,6 +1,7 @@
 <template>
   <div class="portal-screen provider-screen">
     <template v-if="page === 'dashboard'">
+      <div class="dashboard-shell">
       <div class="screen-header"><h1>Service Provider Dashboard</h1><p>Track bookings, earnings, and today's schedule.</p></div>
       <div class="stat-grid provider-stats">
         <div v-for="stat in providerStats" :key="stat.label" class="card stat-card"><div class="stat-label">{{ stat.label }}</div><div class="stat-value">{{ stat.value }}</div></div>
@@ -8,6 +9,7 @@
       <div class="content-grid two-col">
         <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="booking in providerBookingsList.slice(0, 3)" :key="booking.id" class="list-row"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></div></section>
         <section class="card"><h3 class="card-title">Quick Actions</h3><div class="chip-row"><router-link to="/provider/services" class="chip-link">Update Services</router-link><router-link to="/provider/availability" class="chip-link">Edit Availability</router-link><router-link to="/provider/earnings" class="chip-link">View Earnings</router-link></div></section>
+      </div>
       </div>
     </template>
 
@@ -379,25 +381,85 @@ onMounted(() => {
 .screen-header h1 { margin: 0; }
 .screen-header p { color: var(--color-text-secondary); }
 .screen-header.row-between { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); }
-.stat-grid, .content-grid { display: grid; gap: var(--space-4); }
+.stat-grid, .content-grid { display: grid; gap: var(--space-5); }
 .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .provider-stats .stat-value { font-size: var(--text-3xl); font-weight: var(--font-bold); margin-top: var(--space-2); }
 .content-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.list-row, .booking-card, .service-row, .review-row, .completed-row, .note-card, .faq-item { padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.list-row, .booking-card, .service-row, .review-row, .completed-row, .note-card, .faq-item { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
 .list-row:last-child, .booking-card:last-child, .service-row:last-child, .review-row:last-child, .completed-row:last-child, .note-card:last-child, .faq-item:last-child { border-bottom: none; }
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .chip, .chip-link { padding: 6px 12px; border-radius: var(--radius-full); background: var(--color-gray-100); color: var(--color-text-secondary); text-decoration: none; }
-.time-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
+.time-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-4); }
 .time-slot { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-gray-50); }
-.rating-card { display: grid; gap: var(--space-3); align-items: start; }
+.rating-card { display: grid; gap: var(--space-4); align-items: start; }
 .rating-value { font-size: 3rem; font-weight: var(--font-bold); color: var(--color-primary); }
 .stars { color: var(--color-accent-dark); }
 .progress-row { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
 .progress { height: 10px; border-radius: var(--radius-full); background: var(--color-gray-100); overflow: hidden; }
 .progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--color-secondary), var(--color-primary)); }
-.form-card { display: grid; gap: var(--space-4); }
-.switch-row { display: flex; justify-content: space-between; gap: var(--space-4); align-items: center; }
+.form-card { display: grid; gap: var(--space-5); }
+.switch-row { display: flex; justify-content: space-between; gap: var(--space-4); align-items: center; padding: var(--space-2) 0; }
 .profile-card { text-align: center; }
 .table-wrap { overflow-x: auto; }
 @media (max-width: 960px) { .stat-grid, .content-grid.two-col, .time-grid { grid-template-columns: 1fr; } .screen-header.row-between { flex-direction: column; align-items: flex-start; } }
+
+.dashboard-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.dashboard-shell .screen-header {
+  padding: var(--space-6);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard-shell .screen-header h1 {
+  font-size: clamp(2rem, 2.8vw, 3rem);
+}
+
+.dashboard-shell .stat-grid {
+  gap: var(--space-5);
+}
+
+.dashboard-shell .stat-card,
+.dashboard-shell .card {
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-shell .stat-card {
+  padding: var(--space-5);
+}
+
+.dashboard-shell .stat-card .stat-value {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.dashboard-shell .content-grid.two-col {
+  align-items: start;
+}
+
+.dashboard-shell .chip,
+.dashboard-shell .chip-link {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary);
+}
+
+.dashboard-shell .time-slot {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.dashboard-shell .progress {
+  height: 12px;
+}
+
+.dashboard-shell .rating-value {
+  font-size: clamp(2.6rem, 5vw, 4rem);
+}
 </style>

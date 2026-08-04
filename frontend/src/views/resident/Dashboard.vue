@@ -1,6 +1,13 @@
 <template>
-  <div class="dashboard">
-    <div class="page-title-row"><h1>Good Morning, Priya! 👋</h1><p class="subtitle">Here's what's happening in your society today</p></div>
+  <div class="dashboard resident-dashboard">
+    <div class="page-title-row hero-panel">
+      <div>
+        <p class="eyebrow">Resident Dashboard</p>
+        <h1>Good Morning, Priya! 👋</h1>
+        <p class="subtitle">Here's what's happening in your society today</p>
+      </div>
+      <div class="hero-badge">Active Resident</div>
+    </div>
     <div class="stats-grid">
       <div v-for="s in stats" :key="s.label" class="stat-card" @click="$router.push(s.to)">
         <div class="stat-icon" :style="{ background: s.bg, color: s.color }">{{ s.icon }}</div>
@@ -50,29 +57,92 @@ const actions = [
 ]
 </script>
 <style scoped>
+.resident-dashboard {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.hero-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.hero-panel h1 {
+  font-size: clamp(2rem, 3vw, 3rem);
+  margin-bottom: var(--space-2);
+}
+
+.hero-panel .subtitle {
+  margin-top: 0;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-bold);
+  margin-bottom: var(--space-2);
+}
+
+.hero-badge {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-full);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+}
+
 .page-title-row { margin-bottom: var(--space-6); }
 .page-title-row h1 { font-size: var(--text-2xl); }
 .subtitle { color: var(--color-text-secondary); font-size: var(--text-sm); margin-top: var(--space-1); }
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); margin-bottom: var(--space-6); }
-.stat-card { cursor: pointer; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
+.stat-card {
+  cursor: pointer;
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08); }
 .stat-link { font-size: var(--text-xs); color: var(--color-primary); margin-top: var(--space-1); display: inline-block; }
-.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6); }
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
 .text-link { font-size: var(--text-sm); color: var(--color-primary); text-decoration: none; }
-.event-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.card {
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: var(--shadow-sm);
+}
+.card-header { margin-bottom: var(--space-4); }
+.event-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
 .event-item:last-child { border-bottom: none; }
 .event-dot { width: 8px; height: 8px; border-radius: var(--radius-full); flex-shrink: 0; }
 .event-info { flex: 1; }
 .event-info strong { font-size: var(--text-sm); display: block; }
 .event-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
-.notice-item { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.notice-item { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
 .notice-item:last-child { border-bottom: none; }
 .notice-info { display: flex; justify-content: space-between; align-items: center; }
 .notice-info strong { font-size: var(--text-sm); }
 .notice-date { font-size: var(--text-xs); color: var(--color-text-muted); }
+.quick-actions-card { margin-top: 0; }
 .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
-.quick-action { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--color-text-primary); cursor: pointer; transition: all var(--transition-fast); }
-.quick-action:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.qa-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
-@media (max-width: 1024px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .dashboard-grid { grid-template-columns: 1fr; } }
+.quick-action { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-5); border: 1px solid rgba(229, 231, 235, 0.9); border-radius: var(--radius-xl); background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94)); font-size: var(--text-sm); font-weight: var(--font-semibold); color: var(--color-text-primary); cursor: pointer; transition: transform var(--transition-base), box-shadow var(--transition-base); }
+.quick-action:hover { box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08); transform: translateY(-2px); }
+.qa-icon { width: 46px; height: 46px; border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+@media (max-width: 1024px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .dashboard-grid { grid-template-columns: 1fr; } .hero-panel { flex-direction: column; align-items: flex-start; } }
 @media (max-width: 768px) { .quick-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>

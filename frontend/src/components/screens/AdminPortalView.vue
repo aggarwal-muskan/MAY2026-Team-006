@@ -1,6 +1,7 @@
 <template>
   <div class="portal-screen admin-screen">
     <template v-if="page === 'dashboard'">
+      <div class="dashboard-shell">
       <div class="screen-header">
         <h1>Admin Dashboard</h1>
         <p>Overview of residents, complaints, bookings, and events.</p>
@@ -28,6 +29,7 @@
             <div class="progress"><span :style="{ width: `${Math.min(value * 4, 100)}%` }"></span></div>
           </div>
         </section>
+      </div>
       </div>
     </template>
 
@@ -326,7 +328,7 @@ onMounted(() => {
 .screen-header h1 { margin: 0; }
 .screen-header p { color: var(--color-text-secondary); }
 .screen-header.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.stat-grid, .card-grid, .content-grid { display: grid; gap: var(--space-4); }
+.stat-grid, .card-grid, .content-grid { display: grid; gap: var(--space-5); }
 .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .admin-stats .stat-value { font-size: var(--text-3xl); font-weight: var(--font-bold); margin-top: var(--space-2); }
 .content-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -341,11 +343,89 @@ onMounted(() => {
 .toolbar input { width: 100%; }
 .notice-row, .report-card { display: grid; gap: var(--space-3); }
 .row-actions { display: flex; gap: var(--space-2); }
-.form-card { display: grid; gap: var(--space-4); }
-.form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.form-card { display: grid; gap: var(--space-5); }
+.form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) 0; }
 @media (max-width: 960px) {
   .stat-grid, .content-grid.two-col, .card-grid.three-col, .form-grid.two-col { grid-template-columns: 1fr; }
   .screen-header.row-between { flex-direction: column; align-items: flex-start; }
+}
+
+.dashboard-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.dashboard-shell .screen-header {
+  padding: var(--space-6);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard-shell .screen-header h1 {
+  font-size: clamp(2rem, 2.8vw, 3rem);
+}
+
+.dashboard-shell .stat-grid {
+  gap: var(--space-5);
+}
+
+.dashboard-shell .stat-card,
+.dashboard-shell .chart-card,
+.dashboard-shell .notice-row,
+.dashboard-shell .report-card,
+.dashboard-shell .form-card {
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-shell .stat-card {
+  padding: var(--space-5);
+}
+
+.dashboard-shell .stat-card .stat-value {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.dashboard-shell .chart-card,
+.dashboard-shell .form-card {
+  padding: var(--space-5);
+}
+
+.dashboard-shell .bar-chart {
+  min-height: 240px;
+}
+
+.dashboard-shell .bar {
+  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary-dark));
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+}
+
+.dashboard-shell .progress {
+  height: 12px;
+}
+
+.dashboard-shell .toolbar {
+  padding: var(--space-4);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.dashboard-shell .notice-row,
+.dashboard-shell .report-card {
+  padding: var(--space-5) var(--space-6);
+}
+
+.dashboard-shell .switch-row {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard-shell .switch-row:last-child {
+  border-bottom: none;
 }
 </style>
