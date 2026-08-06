@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
+from sqlalchemy.exc import IntegrityError
 
 from app.api import create_api_blueprint
 from app.core.config import Config
@@ -91,6 +92,9 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
-        seed_initial_data()
+        try:
+            seed_initial_data()
+        except IntegrityError:
+            db.session.rollback()
 
     return app

@@ -1,5 +1,7 @@
 ﻿from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
+
 from app.core.extensions import db
 from app.models import Complaint, ComplaintUpdate, Event, Notice, ServiceBooking, ServiceCategory, ServiceProvider, Society, User
 from app.services.auth_service import hash_password
@@ -91,32 +93,62 @@ DEFAULT_CATEGORIES = [
     ("Cook", "Home cooking, party catering, and tiffin services"),
 ]
 
+DEFAULT_PROVIDER_EMAIL_CATEGORY = {
+    "provider.housemaid@socioneed.com": "House Maid",
+    "provider.plumber@socioneed.com": "Plumber",
+    "provider.electrician@socioneed.com": "Electrician",
+    "provider.laundry@socioneed.com": "Laundry",
+    "provider.carwash@socioneed.com": "Car Wash",
+    "provider.gardener@socioneed.com": "Gardener",
+    "provider.tailor@socioneed.com": "Tailor",
+    "provider.cook@socioneed.com": "Cook",
+}
+
 
 def _ensure_provider_profiles_for_provider_users():
-    provider_users = User.query.filter_by(role="service_provider").all()
+    provider_users = User.query.filter_by(role="service_provider").order_by(User.id.asc()).all()
     categories = ServiceCategory.query.order_by(ServiceCategory.id.asc()).all()
     if not provider_users or not categories:
         return
 
+    categories_by_name = {category.name.lower(): category for category in categories}
+
     for index, provider_user in enumerate(provider_users):
         existing_profile = ServiceProvider.query.filter_by(user_id=provider_user.id).first()
+        desired_category = None
+
+        mapped_category_name = DEFAULT_PROVIDER_EMAIL_CATEGORY.get(provider_user.email, "")
+        if mapped_category_name:
+            desired_category = categories_by_name.get(mapped_category_name.lower())
+        if not desired_category:
+            desired_category = categories[index % len(categories)]
+
         if existing_profile:
             if existing_profile.verification_status != "approved":
                 existing_profile.verification_status = "approved"
+            if desired_category and existing_profile.category_id != desired_category.id:
+                existing_profile.category_id = desired_category.id
             continue
 
-        category = categories[index % len(categories)]
         profile = ServiceProvider(
             user_id=provider_user.id,
-            category_id=category.id,
+            category_id=desired_category.id,
             business_name=f"{provider_user.full_name} Services",
             service_description="Community verified service provider",
             verification_status="approved",
             rating_avg=4.5,
         )
-        db.session.add(profile)
-
-    db.session.flush()
+        try:
+            db.session.add(profile)
+            db.session.flush()
+        except IntegrityError:
+            db.session.rollback()
+            # Another process/request inserted this profile first.
+            existing_profile = ServiceProvider.query.filter_by(user_id=provider_user.id).first()
+            if existing_profile and desired_category and existing_profile.category_id != desired_category.id:
+                existing_profile.category_id = desired_category.id
+            if existing_profile and existing_profile.verification_status != "approved":
+                existing_profile.verification_status = "approved"
 
 
 def _seed_demo_transactions(society):

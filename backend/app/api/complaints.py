@@ -6,12 +6,14 @@ from flask_jwt_extended import jwt_required
 from app.api.utils import current_user
 from app.core.extensions import db
 from app.core.responses import fail, ok
-from app.core.security import ROLE_ADMIN, ROLE_OWNER, ROLE_SECURITY, ROLE_TENANT, roles_required
-from app.models import Complaint, ComplaintUpdate
+from app.core.security import ROLE_ADMIN, ROLE_OWNER, ROLE_SECURITY, ROLE_SERVICE_PROVIDER, ROLE_TENANT, roles_required
+from app.models import Complaint, ComplaintUpdate, User
 from app.services.query_service import paginate_query
 
 
 complaints_bp = Blueprint("complaints", __name__, url_prefix="/complaints")
+
+ALLOWED_COMPLAINT_STATUSES = {"open", "in_progress", "resolved", "closed"}
 
 
 @complaints_bp.get("")
@@ -122,7 +124,21 @@ def assign_complaint(complaint_id):
     if not data.get("assigned_to_user_id"):
         return fail("assigned_to_user_id is required", "VALIDATION_ERROR", 400)
 
-    complaint.assigned_to_user_id = data["assigned_to_user_id"]
+    if complaint.status == "closed":
+        return fail("Closed complaints cannot be assigned", "INVALID_STATUS_TRANSITION", 409)
+
+    assignee = db.session.get(User, int(data["assigned_to_user_id"]))
+    if not assignee:
+        return fail("Assigned user not found", "NOT_FOUND", 404)
+    if assignee.society_id != complaint.society_id:
+        return fail("Assigned user belongs to a different society", "VALIDATION_ERROR", 400)
+    if assignee.role not in {ROLE_ADMIN, ROLE_SECURITY, ROLE_SERVICE_PROVIDER}:
+        return fail("Assigned user role is not eligible", "VALIDATION_ERROR", 400)
+
+    if complaint.assigned_to_user_id and int(complaint.assigned_to_user_id) == int(assignee.id):
+        return fail("Complaint already assigned to this user", "DUPLICATE", 409)
+
+    complaint.assigned_to_user_id = assignee.id
     complaint.status = "in_progress"
     update = ComplaintUpdate(
         complaint_id=complaint.id,
@@ -153,6 +169,17 @@ def update_complaint_status(complaint_id):
 
     if not status or not comment:
         return fail("status and comment are required", "VALIDATION_ERROR", 400)
+
+    status = str(status).strip().lower()
+    current_status = str(complaint.status or "").lower()
+    if status not in ALLOWED_COMPLAINT_STATUSES:
+        return fail("Invalid complaint status", "VALIDATION_ERROR", 400)
+    if status == current_status:
+        return fail("Complaint is already in this status", "DUPLICATE", 409)
+    if current_status == "closed":
+        return fail("Closed complaints cannot be updated", "INVALID_STATUS_TRANSITION", 409)
+    if status == "in_progress" and not complaint.assigned_to_user_id:
+        return fail("Assign complaint before moving to in_progress", "VALIDATION_ERROR", 400)
 
     complaint.status = status
     update = ComplaintUpdate(

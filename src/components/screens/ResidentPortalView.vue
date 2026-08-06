@@ -227,7 +227,7 @@
       <div class="chip-row"><span v-for="tab in ['Upcoming', 'Completed', 'Cancelled']" :key="tab" class="chip">{{ tab }}</span></div>
       <div class="stack">
         <article v-for="booking in residentBookings" :key="booking.id" class="card booking-card">
-          <div><strong>{{ booking.facility || booking.provider_name || `Provider #${booking.provider_id}` }}</strong><p>{{ booking.date || booking.created_at || '-' }}</p></div>
+          <div><strong>{{ bookingFacility(booking) }}</strong><p>{{ bookingDate(booking) }}</p></div>
           <span class="badge" :class="badgeClass(booking.status || booking.booking_status)">{{ booking.status || booking.booking_status }}</span>
         </article>
       </div>
@@ -315,20 +315,21 @@
 
     <template v-else-if="page === 'book-amenities'">
       <div class="content-grid two-col align-start">
-        <form class="card form-card" @submit.prevent="notify.success('Amenity booking submitted')">
+        <form class="card form-card amenity-booking-form" @submit.prevent="submitAmenityBooking">
           <div class="form-grid two-col">
-            <label class="form-group"><span class="form-label">Facility</span><select><option>Club House</option><option>Gym</option><option>Swimming Pool</option><option>Community Hall</option></select></label>
-            <label class="form-group"><span class="form-label">Date</span><input type="date" /></label>
+            <label class="form-group"><span class="form-label">Facility</span><select v-model="amenityForm.category_id"><option disabled value="">Select facility</option><option v-for="category in browseServiceCards" :key="category.id" :value="category.id">{{ category.name }}</option></select></label>
+            <label class="form-group"><span class="form-label">Assigned Provider</span><input :value="selectedAmenityProviderName" type="text" disabled /></label>
           </div>
           <div class="form-grid two-col">
-            <label class="form-group"><span class="form-label">Time Slot</span><select><option>09:00 AM - 10:00 AM</option><option>10:00 AM - 11:00 AM</option><option>04:00 PM - 05:00 PM</option></select></label>
-            <label class="form-group"><span class="form-label">Purpose</span><input type="text" placeholder="Enter purpose" /></label>
+            <label class="form-group"><span class="form-label">Date</span><input v-model="amenityForm.date" type="date" /></label>
+            <label class="form-group"><span class="form-label">Time Slot</span><input v-model="amenityForm.time_slot" type="text" placeholder="09:00 AM - 10:00 AM" /></label>
           </div>
+          <label class="form-group"><span class="form-label">Purpose</span><input v-model="amenityForm.purpose" type="text" placeholder="Enter purpose" /></label>
           <button class="btn btn-primary">Book Now</button>
         </form>
         <section class="card">
           <h3 class="card-title">My Bookings</h3>
-          <div v-for="booking in bookings.slice(0, 3)" :key="booking.id + 'amenity'" class="list-row compact"><strong>{{ booking.facility }}</strong><span>{{ booking.status }}</span></div>
+          <div v-for="booking in residentBookings.slice(0, 3)" :key="booking.id + 'amenity'" class="list-row compact"><strong>{{ bookingFacility(booking) }}</strong><span>{{ booking.status || booking.booking_status }}</span></div>
         </section>
       </div>
     </template>
@@ -373,9 +374,9 @@
         <p>Review past service requests and completed jobs.</p>
       </div>
       <div class="stack">
-        <article v-for="booking in bookings" :key="booking.id + 'history'" class="card history-card">
-          <div><strong>{{ booking.facility }}</strong><p>{{ booking.purpose }}</p></div>
-          <span class="badge" :class="badgeClass(booking.status)">{{ booking.status }}</span>
+        <article v-for="booking in residentBookings" :key="booking.id + 'history'" class="card history-card">
+          <div><strong>{{ bookingFacility(booking) }}</strong><p>{{ bookingDate(booking) }}</p></div>
+          <span class="badge" :class="badgeClass(booking.status || booking.booking_status)">{{ booking.status || booking.booking_status }}</span>
         </article>
       </div>
     </template>
@@ -412,9 +413,11 @@ const backendComplaints = ref([])
 const backendProviders = ref([])
 const backendServiceCategories = ref([])
 const backendBookings = ref([])
+const providerAmenityNameById = ref({})
 const joinedEventIds = ref(new Set())
 const isEditingProfile = ref(false)
 const profileForm = reactive({ full_name: '', phone: '', email: '' })
+const amenityForm = reactive({ category_id: '', date: '', time_slot: '', purpose: '' })
 
 const residentEvents = computed(() => {
   if (authStore.token) return backendEvents.value
@@ -458,6 +461,35 @@ const selectedProvider = computed(() => {
   const id = Number(route.params.id)
   if (!id) return backendProviders.value[0] || null
   return backendProviders.value.find((item) => Number(item.id) === id) || null
+})
+
+const amenityProviders = computed(() => {
+  const categoryId = Number(amenityForm.category_id)
+  if (!categoryId) return backendProviders.value
+  return backendProviders.value.filter((item) => Number(item.category_id) === categoryId)
+})
+
+const selectedAmenityProvider = computed(() => {
+  const categoryId = Number(amenityForm.category_id)
+  if (!categoryId) return null
+
+  const category = browseServiceCards.value.find((item) => Number(item.id) === categoryId)
+  const categoryName = String(category?.name || '').trim().toLowerCase()
+  const list = amenityProviders.value
+
+  if (Array.isArray(list) && list.length) {
+    const directMatch = list.find((provider) => String(provider.business_name || '').toLowerCase().includes(categoryName))
+    if (directMatch) return directMatch
+    return list[0]
+  }
+
+  const fallback = backendProviders.value.find((provider) => String(provider.business_name || '').toLowerCase().includes(categoryName))
+  return fallback || null
+})
+
+const selectedAmenityProviderName = computed(() => {
+  if (!amenityForm.category_id) return 'Select facility first'
+  return selectedAmenityProvider.value?.business_name || 'No provider available for selected facility'
 })
 
 const currentUserDisplayName = computed(() => authStore.user?.name || 'Resident')
@@ -588,7 +620,10 @@ async function loadResidentData() {
       if (complaintsResult.status === 'fulfilled') backendComplaints.value = complaintsResult.value
       if (providersResult.status === 'fulfilled') backendProviders.value = providersResult.value
       if (categoriesResult.status === 'fulfilled') backendServiceCategories.value = categoriesResult.value
-      if (bookingsResult.status === 'fulfilled') backendBookings.value = bookingsResult.value
+      if (bookingsResult.status === 'fulfilled') {
+        backendBookings.value = bookingsResult.value
+        await hydrateBookingAmenityNames(backendBookings.value)
+      }
     }
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to load resident data')
@@ -636,10 +671,103 @@ async function bookServiceNow() {
       request_notes: 'Booking created from resident portal',
     })
     backendBookings.value = await authStore.listBookings()
+    await hydrateBookingAmenityNames(backendBookings.value)
     notify.success('Service booking created successfully')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to create booking')
   }
+}
+
+async function submitAmenityBooking() {
+  try {
+    const providerId = Number(selectedAmenityProvider.value?.id)
+    if (!providerId) {
+      notify.error('No provider available for selected facility')
+      return
+    }
+
+    const category = browseServiceCards.value.find((item) => Number(item.id) === Number(amenityForm.category_id))
+    const notesParts = [
+      category?.name ? `Facility: ${category.name}` : '',
+      amenityForm.date ? `Date: ${amenityForm.date}` : '',
+      amenityForm.time_slot ? `Time: ${amenityForm.time_slot}` : '',
+      amenityForm.purpose ? `Purpose: ${amenityForm.purpose}` : '',
+    ].filter(Boolean)
+
+    await authStore.createBooking({
+      provider_id: providerId,
+      request_notes: notesParts.join(' | ') || 'Amenity booking request',
+    })
+
+    backendBookings.value = await authStore.listBookings()
+    await hydrateBookingAmenityNames(backendBookings.value)
+    amenityForm.category_id = ''
+    amenityForm.date = ''
+    amenityForm.time_slot = ''
+    amenityForm.purpose = ''
+    notify.success('Amenity booking created successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to create amenity booking')
+  }
+}
+
+async function hydrateBookingAmenityNames(bookingsList) {
+  if (!authStore.token || !Array.isArray(bookingsList) || bookingsList.length === 0) return
+
+  const nextMap = { ...providerAmenityNameById.value }
+  const providerIds = [...new Set(bookingsList.map((item) => Number(item.provider_id)).filter((id) => Number.isFinite(id) && id > 0))]
+  const missingIds = providerIds.filter((id) => !nextMap[id])
+  if (missingIds.length === 0) {
+    providerAmenityNameById.value = nextMap
+    return
+  }
+
+  const providerResults = await Promise.allSettled(missingIds.map((id) => authStore.getProvider(id)))
+  for (let index = 0; index < providerResults.length; index += 1) {
+    const result = providerResults[index]
+    const providerId = missingIds[index]
+    if (result.status !== 'fulfilled' || !result.value) continue
+
+    const provider = result.value
+    const categoryId = Number(provider.category_id)
+    const category = backendServiceCategories.value.find((item) => Number(item.id) === categoryId)
+    nextMap[providerId] = category?.name || provider.business_name || `Provider #${providerId}`
+  }
+
+  providerAmenityNameById.value = nextMap
+}
+
+function bookingFacility(booking) {
+  const notes = String(booking?.request_notes || '')
+  const match = notes.match(/Facility:\s*([^|]+)/i)
+  if (match?.[1]) return match[1].trim()
+
+  const providerId = Number(booking?.provider_id)
+  if (providerId) {
+    if (providerAmenityNameById.value[providerId]) {
+      return providerAmenityNameById.value[providerId]
+    }
+
+    const provider = backendProviders.value.find((item) => Number(item.id) === providerId)
+    const categoryId = Number(provider?.category_id)
+    if (categoryId) {
+      const category = backendServiceCategories.value.find((item) => Number(item.id) === categoryId)
+      if (category?.name) return category.name
+    }
+    if (provider?.business_name) return provider.business_name
+  }
+
+  return booking?.facility || booking?.provider_name || `Provider #${booking?.provider_id}`
+}
+
+function bookingDate(booking) {
+  const notes = String(booking?.request_notes || '')
+  const dateMatch = notes.match(/Date:\s*([^|]+)/i)
+  const timeMatch = notes.match(/Time:\s*([^|]+)/i)
+  if (dateMatch?.[1] || timeMatch?.[1]) {
+    return [dateMatch?.[1]?.trim(), timeMatch?.[1]?.trim()].filter(Boolean).join(' · ')
+  }
+  return booking?.date || booking?.created_at || '-'
 }
 
 async function leaveEvent(eventId) {
@@ -695,6 +823,9 @@ onMounted(() => {
 .timeline-dot.done { background: var(--color-primary); }
 .form-card { display: grid; gap: var(--space-4); }
 .form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.amenity-booking-form .form-group { margin-bottom: 0; display: grid; gap: var(--space-2); align-content: start; }
+.amenity-booking-form select,
+.amenity-booking-form input { min-height: 44px; }
 .screen-header.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .profile-card { text-align: center; }
 .provider-card, .profile-card { align-items: flex-start; }

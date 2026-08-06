@@ -12,6 +12,9 @@ from app.services.query_service import paginate_query
 bookings_bp = Blueprint("bookings", __name__, url_prefix="/bookings")
 
 
+TERMINAL_BOOKING_STATUSES = {"declined", "cancelled", "completed"}
+
+
 @bookings_bp.get("")
 @jwt_required()
 def list_bookings():
@@ -95,6 +98,9 @@ def accept_booking(booking_id):
     if not provider or provider.user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
 
+    if booking.booking_status != "requested":
+        return fail("Only requested bookings can be accepted", "INVALID_STATUS_TRANSITION", 409)
+
     booking.booking_status = "accepted"
     db.session.commit()
     return ok(booking.to_dict(), "Booking accepted")
@@ -111,6 +117,9 @@ def decline_booking(booking_id):
     provider = db.session.get(ServiceProvider, booking.provider_id)
     if not provider or provider.user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
+
+    if booking.booking_status not in {"requested", "accepted"}:
+        return fail("Only requested or accepted bookings can be declined", "INVALID_STATUS_TRANSITION", 409)
 
     booking.booking_status = "declined"
     if booking.slot_id:
@@ -134,6 +143,9 @@ def complete_booking(booking_id):
     if not provider or provider.user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
 
+    if booking.booking_status != "accepted":
+        return fail("Only accepted bookings can be completed", "INVALID_STATUS_TRANSITION", 409)
+
     booking.booking_status = "completed"
     db.session.commit()
     return ok(booking.to_dict(), "Booking completed")
@@ -149,6 +161,9 @@ def cancel_booking(booking_id):
 
     if actor.role != ROLE_ADMIN and booking.resident_user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
+
+    if booking.booking_status in TERMINAL_BOOKING_STATUSES:
+        return fail("This booking can no longer be cancelled", "INVALID_STATUS_TRANSITION", 409)
 
     booking.booking_status = "cancelled"
     if booking.slot_id:
