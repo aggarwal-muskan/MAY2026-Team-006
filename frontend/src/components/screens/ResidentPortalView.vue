@@ -1,6 +1,7 @@
 <template>
   <div class="portal-screen resident-screen">
     <template v-if="page === 'dashboard'">
+      <div class="dashboard-shell">
       <div class="screen-hero card">
         <div>
           <p class="eyebrow">Resident Portal</p>
@@ -56,6 +57,7 @@
             </div>
           </div>
         </section>
+      </div>
       </div>
     </template>
 
@@ -663,10 +665,10 @@ onMounted(() => {
 .portal-screen { display: grid; gap: var(--space-6); }
 .screen-hero { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--text-xs); color: var(--color-primary); font-weight: var(--font-semibold); margin-bottom: var(--space-2); }
-.screen-hero h1, .screen-header h1 { margin-bottom: var(--space-2); }
+.screen-hero h1, .screen-header h1 { margin-bottom: var(--space-3); }
 .screen-hero p, .screen-header p { color: var(--color-text-secondary); }
 .screen-avatar { background: linear-gradient(135deg, var(--color-primary-100), var(--color-info-100)); color: var(--color-primary); }
-.stat-grid, .card-grid, .action-grid, .content-grid { display: grid; gap: var(--space-4); }
+.stat-grid, .card-grid, .action-grid, .content-grid { display: grid; gap: var(--space-5); }
 .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stat-card { padding: var(--space-5); }
 .stat-label { font-size: var(--text-sm); color: var(--color-text-secondary); }
@@ -674,11 +676,11 @@ onMounted(() => {
 .content-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .card-grid.three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .list-row, .event-card, .booking-card, .notification-card, .bill-card, .history-card, .member-card, .faq-item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.list-row, .event-card, .booking-card, .notification-card, .bill-card, .history-card, .member-card { padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.list-row, .event-card, .booking-card, .notification-card, .bill-card, .history-card, .member-card { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
 .list-row:last-child, .event-card:last-child, .booking-card:last-child, .notification-card:last-child, .bill-card:last-child, .history-card:last-child, .member-card:last-child { border-bottom: none; }
-.compact { padding: var(--space-3) 0; }
+.compact { padding: var(--space-3) var(--space-5); }
 .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.action-card { display: grid; gap: var(--space-2); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-gray-50); color: inherit; }
+.action-card { display: grid; gap: var(--space-3); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-gray-50); color: inherit; }
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .chip { padding: 6px 12px; border-radius: var(--radius-full); background: var(--color-gray-100); color: var(--color-text-secondary); font-size: var(--text-xs); }
 .stack { display: grid; gap: var(--space-4); }
@@ -688,7 +690,7 @@ onMounted(() => {
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: var(--space-4); }
 .calendar-day { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-gray-50); border: 1px solid var(--color-border); }
 .calendar-day.active { background: var(--color-primary); color: white; }
-.detail-list { display: grid; gap: var(--space-3); }
+.detail-list { display: grid; gap: var(--space-4); }
 .detail-row { display: flex; justify-content: space-between; gap: var(--space-4); }
 .timeline-row { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
 .timeline-dot { width: 12px; height: 12px; margin-top: 6px; border-radius: 50%; background: var(--color-border); }
@@ -698,7 +700,7 @@ onMounted(() => {
 .screen-header.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .profile-card { text-align: center; }
 .provider-card, .profile-card { align-items: flex-start; }
-.faq-item { display: block; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.faq-item { display: block; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
 .faq-item:last-child { border-bottom: none; }
 .bill-meta { display: grid; justify-items: end; gap: var(--space-2); }
 .align-start { align-items: start; }
@@ -706,5 +708,117 @@ onMounted(() => {
   .stat-grid, .content-grid.two-col, .card-grid.three-col { grid-template-columns: 1fr; }
   .screen-hero, .screen-header.row-between, .provider-top { flex-direction: column; align-items: flex-start; }
   .form-grid.two-col { grid-template-columns: 1fr; }
+}
+
+.dashboard-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.dashboard-shell .screen-hero {
+  padding: var(--space-6);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard-shell .screen-hero h1 {
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1.05;
+}
+
+.dashboard-shell .screen-avatar {
+  width: 88px;
+  height: 88px;
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.2);
+}
+
+.dashboard-shell .stat-grid {
+  gap: var(--space-5);
+}
+
+.dashboard-shell .stat-card {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-5);
+  border: 1px solid rgba(229, 231, 235, 0.92);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-shell .stat-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -16px -16px auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%);
+}
+
+.dashboard-shell .content-grid.two-col {
+  align-items: start;
+}
+
+.dashboard-shell .card {
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-shell .card-header {
+  margin-bottom: var(--space-3);
+}
+
+.dashboard-shell .card-title {
+  font-size: var(--text-lg);
+}
+
+.dashboard-shell .action-grid {
+  gap: var(--space-3);
+}
+
+.dashboard-shell .action-card {
+  position: relative;
+  min-height: 128px;
+  padding: var(--space-5);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.94));
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.dashboard-shell .action-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(37, 99, 235, 0.18);
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.14);
+}
+
+.dashboard-shell .action-card span:first-child {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary-50), var(--color-info-50));
+  font-size: 1.25rem;
+}
+
+.dashboard-shell .list-row,
+.dashboard-shell .event-card,
+.dashboard-shell .booking-card,
+.dashboard-shell .notification-card,
+.dashboard-shell .bill-card,
+.dashboard-shell .history-card,
+.dashboard-shell .member-card,
+.dashboard-shell .faq-item {
+  padding-block: var(--space-4);
+}
+
+.dashboard-shell .detail-list,
+.dashboard-shell .stack {
+  gap: var(--space-3);
 }
 </style>

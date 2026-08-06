@@ -1,9 +1,11 @@
 <template>
   <div class="portal-screen security-screen">
     <template v-if="page === 'dashboard'">
+      <div class="dashboard-shell">
       <div class="screen-header"><h1>Security Dashboard</h1><p>Monitor visitor flow, patrol activity, and incident response.</p></div>
       <div class="stat-grid"><div v-for="stat in securityStats" :key="stat.label" class="card stat-card"><div class="stat-label">{{ stat.label }}</div><div class="stat-value">{{ stat.value }}</div></div></div>
       <div class="content-grid two-col"><section class="card"><h3 class="card-title">Recent Entries</h3><div v-for="entry in visitorLogs.slice(0, 4)" :key="entry.id" class="list-row"><div><strong>{{ entry.name }}</strong><p>{{ entry.purpose }} · {{ entry.flat }}</p></div><span class="badge" :class="badgeClass(entry.status)">{{ entry.status }}</span></div></section><section class="card"><h3 class="card-title">Quick Actions</h3><div class="chip-row"><router-link to="/security/visitor-entry" class="chip-link">Visitor Entry</router-link><router-link to="/security/vehicles" class="chip-link">Vehicle Logs</router-link></div></section></div>
+      </div>
     </template>
 
     <template v-else-if="page === 'visitor-entry'">
@@ -67,15 +69,73 @@ const patrolItems = [
 .screen-header { display: grid; gap: var(--space-2); }
 .screen-header h1 { margin: 0; }
 .screen-header p { color: var(--color-text-secondary); }
-.stat-grid, .content-grid { display: grid; gap: var(--space-4); }
+.stat-grid, .content-grid { display: grid; gap: var(--space-5); }
 .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stat-card .stat-value { font-size: var(--text-3xl); font-weight: var(--font-bold); margin-top: var(--space-2); }
 .content-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.list-row, .patrol-row, .alert-row { padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: var(--space-4); }
+.list-row, .patrol-row, .alert-row { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: var(--space-4); }
 .list-row:last-child, .patrol-row:last-child, .alert-row:last-child { border-bottom: none; }
 .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .chip-link { padding: 6px 12px; border-radius: var(--radius-full); background: var(--color-gray-100); color: var(--color-text-secondary); text-decoration: none; }
 .table-wrap { overflow-x: auto; }
-.form-card { display: grid; gap: var(--space-4); }
+.form-card { display: grid; gap: var(--space-5); }
 @media (max-width: 960px) { .stat-grid, .content-grid.two-col { grid-template-columns: 1fr; } }
+
+.dashboard-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.dashboard-shell .screen-header {
+  padding: var(--space-6);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(circle at top right, rgba(239, 68, 68, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard-shell .screen-header h1 {
+  font-size: clamp(2rem, 2.8vw, 3rem);
+}
+
+.dashboard-shell .stat-grid {
+  gap: var(--space-5);
+}
+
+.dashboard-shell .stat-card,
+.dashboard-shell .card {
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-shell .stat-card {
+  padding: var(--space-5);
+}
+
+.dashboard-shell .stat-card .stat-value {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.dashboard-shell .content-grid.two-col {
+  align-items: start;
+}
+
+.dashboard-shell .list-row,
+.dashboard-shell .patrol-row,
+.dashboard-shell .alert-row {
+  padding-block: var(--space-4);
+}
+
+.dashboard-shell .chip-link {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary);
+}
+
+.dashboard-shell .table-wrap {
+  border: 1px solid rgba(229, 231, 235, 0.9);
+  box-shadow: var(--shadow-sm);
+}
 </style>
