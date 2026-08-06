@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, request
+from flask import Blueprint, request
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
 from sqlalchemy import or_
 
@@ -29,6 +29,12 @@ def register():
     missing = [field for field in required_fields if not data.get(field)]
     if missing:
         return fail(f"Missing required fields: {', '.join(missing)}", "VALIDATION_ERROR", 400)
+
+    if "@" not in data["email"] or "." not in data["email"]:
+        return fail("Invalid email format", "VALIDATION_ERROR", 400)
+
+    if len(data["password"]) < 6:
+        return fail("Password must be at least 6 characters long", "VALIDATION_ERROR", 400)
 
     if User.query.filter_by(email=data["email"]).first():
         return fail("Email already registered", "DUPLICATE_EMAIL", 409)
