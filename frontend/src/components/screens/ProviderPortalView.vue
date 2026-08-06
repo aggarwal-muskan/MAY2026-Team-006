@@ -7,7 +7,7 @@
         <div v-for="stat in providerStats" :key="stat.label" class="card stat-card"><div class="stat-label">{{ stat.label }}</div><div class="stat-value">{{ stat.value }}</div></div>
       </div>
       <div class="content-grid two-col">
-        <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="booking in providerBookingsList.slice(0, 3)" :key="booking.id" class="list-row"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></div></section>
+        <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="booking in filteredProviderBookings.slice(0, 3)" :key="booking.id" class="list-row"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></div></section>
         <section class="card"><h3 class="card-title">Quick Actions</h3><div class="chip-row"><router-link to="/provider/services" class="chip-link">Update Services</router-link><router-link to="/provider/availability" class="chip-link">Edit Availability</router-link><router-link to="/provider/earnings" class="chip-link">View Earnings</router-link></div></section>
       </div>
       </div>
@@ -119,12 +119,12 @@
 
     <template v-else-if="page === 'customer-history'">
       <div class="screen-header"><h1>Customer History</h1><p>Past customers and request history.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="booking in providerBookingsList" :key="booking.id + 'history'"><td>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</td><td>{{ booking.request_notes || '-' }}</td><td>{{ booking.created_at || '-' }}</td><td><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="booking in filteredProviderBookings" :key="booking.id + 'history'"><td>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</td><td>{{ booking.request_notes || '-' }}</td><td>{{ booking.created_at || '-' }}</td><td><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'completed-jobs'">
       <div class="screen-header"><h1>Completed Jobs</h1><p>Finished work and service outcomes.</p></div>
-      <div class="stack"><article v-for="booking in providerBookingsList.filter(item => (item.booking_status || item.status) === 'completed')" :key="booking.id" class="card completed-row"><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || '-' }}</p></article></div>
+      <div class="stack"><article v-for="booking in filteredProviderBookings.filter(item => (item.booking_status || item.status) === 'completed')" :key="booking.id" class="card completed-row"><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || '-' }}</p></article></div>
     </template>
 
     <template v-else-if="page === 'payouts'">
@@ -165,10 +165,30 @@ const userInitials = computed(() => authStore.userInitials || 'SP')
 const providerEmail = computed(() => authStore.user?.email || '-')
 const providerPhone = computed(() => authStore.user?.phone || '-')
 const providerRoleText = computed(() => (authStore.user?.category ? `${authStore.user.category} Provider` : 'Verified Provider'))
+const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
 
 const providerBookingsList = computed(() => {
   if (authStore.token) return backendBookings.value
   return providerBookings
+})
+
+function matchesProviderBookingSearch(booking, query) {
+  if (!query) return true
+  const values = [
+    booking?.resident_name,
+    booking?.resident_user_id,
+    booking?.request_notes,
+    booking?.created_at,
+    booking?.booking_status,
+    booking?.status,
+  ].map((value) => String(value || '').toLowerCase())
+  return values.some((value) => value.includes(query))
+}
+
+const filteredProviderBookings = computed(() => {
+  const query = globalSearchQuery.value
+  if (!query) return providerBookingsList.value
+  return providerBookingsList.value.filter((booking) => matchesProviderBookingSearch(booking, query))
 })
 
 const bookingHistoryCount = computed(() => {
@@ -191,7 +211,7 @@ const completedBookingsCount = computed(() => {
 
 const orderedProviderBookings = computed(() => {
   const priority = { requested: 0, accepted: 1, completed: 2, declined: 3, cancelled: 4 }
-  return [...providerBookingsList.value].sort((a, b) => {
+  return [...filteredProviderBookings.value].sort((a, b) => {
     const statusDiff = (priority[bookingStatus(a)] ?? 99) - (priority[bookingStatus(b)] ?? 99)
     if (statusDiff !== 0) return statusDiff
     return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()

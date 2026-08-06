@@ -83,7 +83,7 @@
                 <path d="m21 21-4.35-4.35"></path>
               </svg>
             </span>
-            <input type="text" placeholder="Search anything..." v-model="searchQuery" />
+            <input type="text" placeholder="Search anything..." v-model="searchQuery" @keydown.enter.prevent="submitSearch" />
           </div>
         </div>
         <div class="topbar-right">
@@ -155,6 +155,14 @@ function isActive(path) {
 function handleLogout() {
   authStore.logout()
   router.push('/login')
+}
+
+function submitSearch() {
+  const trimmed = String(searchQuery.value || '').trim()
+  router.push({
+    path: route.path,
+    query: trimmed ? { ...route.query, q: trimmed } : { ...route.query, q: undefined },
+  })
 }
 
 async function loadResidentBadgeCounts() {
@@ -281,6 +289,14 @@ watch(
   () => {
     loadSidebarBadgeCounts()
   }
+)
+
+watch(
+  () => route.query.q,
+  (value) => {
+    searchQuery.value = String(value || '')
+  },
+  { immediate: true }
 )
 </script>
 

@@ -386,7 +386,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
@@ -420,43 +420,113 @@ const joinedEventIds = ref(new Set())
 const isEditingProfile = ref(false)
 const profileForm = reactive({ full_name: '', phone: '', email: '' })
 const amenityForm = reactive({ category_id: '', date: '', time_slot: '', purpose: '' })
+const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
+
+function matchesSearch(values, query) {
+  if (!query) return true
+  return values
+    .map((value) => String(value || '').toLowerCase())
+    .some((value) => value.includes(query))
+}
 
 const residentEvents = computed(() => {
-  if (authStore.token) return backendEvents.value
-  return mockEvents
+  const list = authStore.token ? backendEvents.value : mockEvents
+  const query = globalSearchQuery.value
+  if (!query) return list
+  return list.filter((event) => matchesSearch([
+    event?.title,
+    event?.description,
+    event?.venue,
+    event?.category,
+    event?.event_date,
+    event?.date,
+  ], query))
 })
 
 const residentNotices = computed(() => {
   if (authStore.token) {
-    return [...backendNotices.value].sort((a, b) => {
+    const sorted = [...backendNotices.value].sort((a, b) => {
       const aTime = new Date(a.publish_at || a.created_at || a.date || 0).getTime()
       const bTime = new Date(b.publish_at || b.created_at || b.date || 0).getTime()
       return bTime - aTime
     })
+    const query = globalSearchQuery.value
+    if (!query) return sorted
+    return sorted.filter((notice) => matchesSearch([
+      notice?.title,
+      notice?.body,
+      notice?.content,
+      notice?.notice_type,
+      notice?.category,
+      notice?.priority,
+    ], query))
   }
-  return mockNotices
+  const query = globalSearchQuery.value
+  if (!query) return mockNotices
+  return mockNotices.filter((notice) => matchesSearch([
+    notice?.title,
+    notice?.body,
+    notice?.content,
+    notice?.notice_type,
+    notice?.category,
+    notice?.priority,
+  ], query))
 })
 
 const residentComplaints = computed(() => {
   if (authStore.token) {
-    return [...backendComplaints.value].sort((a, b) => {
+    const sorted = [...backendComplaints.value].sort((a, b) => {
       const aTime = new Date(a.created_at || a.date || 0).getTime()
       const bTime = new Date(b.created_at || b.date || 0).getTime()
       if (aTime !== bTime) return bTime - aTime
       return Number(b.id || 0) - Number(a.id || 0)
     })
+    const query = globalSearchQuery.value
+    if (!query) return sorted
+    return sorted.filter((complaint) => matchesSearch([
+      complaint?.id,
+      complaint?.title,
+      complaint?.subject,
+      complaint?.description,
+      complaint?.category,
+      complaint?.status,
+    ], query))
   }
-  return mockComplaints
+  const query = globalSearchQuery.value
+  if (!query) return mockComplaints
+  return mockComplaints.filter((complaint) => matchesSearch([
+    complaint?.id,
+    complaint?.title,
+    complaint?.subject,
+    complaint?.description,
+    complaint?.category,
+    complaint?.status,
+  ], query))
 })
 
 const residentBookings = computed(() => {
-  if (authStore.token) return backendBookings.value
-  return bookings
+  const list = authStore.token ? backendBookings.value : bookings
+  const query = globalSearchQuery.value
+  if (!query) return list
+  return list.filter((booking) => matchesSearch([
+    booking?.request_notes,
+    booking?.status,
+    booking?.booking_status,
+    booking?.provider_name,
+    booking?.created_at,
+    booking?.date,
+    bookingFacility(booking),
+  ], query))
 })
 
 const browseServiceCards = computed(() => {
-  if (authStore.token) return backendServiceCategories.value
-  return mockServiceCategories
+  const list = authStore.token ? backendServiceCategories.value : mockServiceCategories
+  const query = globalSearchQuery.value
+  if (!query) return list
+  return list.filter((category) => matchesSearch([
+    category?.name,
+    category?.description,
+  ], query))
 })
 
 const selectedProvider = computed(() => {
@@ -601,6 +671,8 @@ async function loadResidentData() {
     }
 
     if (authStore.token) {
+      const searchTerm = String(route.query.q || '').trim()
+      const searchQueryString = searchTerm ? new URLSearchParams({ search: searchTerm }).toString() : ''
       const [
         eventsResult,
         noticesResult,
@@ -609,10 +681,10 @@ async function loadResidentData() {
         categoriesResult,
         bookingsResult,
       ] = await Promise.allSettled([
-        authStore.listEvents(),
-        authStore.listNotices(),
-        authStore.listComplaints(),
-        authStore.listProviders(),
+        authStore.listEvents(searchQueryString),
+        authStore.listNotices(searchQueryString),
+        authStore.listComplaints(searchQueryString),
+        authStore.listProviders(searchQueryString),
         authStore.listServiceCategories(),
         authStore.listBookings(),
       ])
@@ -787,6 +859,13 @@ async function leaveEvent(eventId) {
 onMounted(() => {
   loadResidentData()
 })
+
+watch(
+  () => route.query.q,
+  () => {
+    loadResidentData()
+  }
+)
 </script>
 
 <style scoped>

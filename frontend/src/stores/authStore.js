@@ -219,15 +219,56 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value
   }
 
-  async function listEvents() {
-    const payload = await authFetch('/events', { method: 'GET' })
-    return payload?.data?.items || []
+  function resolveListArgs(query = '', options = {}) {
+    if (typeof query === 'object' && query !== null) {
+      return { finalQuery: '', finalOptions: query }
+    }
+    return { finalQuery: query, finalOptions: options }
   }
 
-  async function listNotices(options = {}) {
-    const payload = await authFetch('/notices', { method: 'GET' })
+  function buildQuerySuffix(query) {
+    if (!query) return ''
+
+    if (typeof query === 'string') {
+      const trimmed = query.trim()
+      if (!trimmed) return ''
+      return trimmed.startsWith('?') ? trimmed : `?${trimmed}`
+    }
+
+    if (typeof query === 'object') {
+      const params = new URLSearchParams()
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          params.append(key, String(value))
+        }
+      })
+      const qs = params.toString()
+      return qs ? `?${qs}` : ''
+    }
+
+    return ''
+  }
+
+  async function listEvents(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/events${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
+      return {
+        items,
+        pagination: payload?.data?.pagination || null,
+      }
+    }
+    return items
+  }
+
+  async function listNotices(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/notices${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -272,10 +313,12 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
-  async function listComplaints(options = {}) {
-    const payload = await authFetch('/complaints', { method: 'GET' })
+  async function listComplaints(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/complaints${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -318,10 +361,12 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data?.status_breakdown || {}
   }
 
-  async function listProviders(options = {}) {
-    const payload = await authFetch('/providers', { method: 'GET' })
+  async function listProviders(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/providers${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -380,10 +425,12 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function listBookings(options = {}) {
-    const payload = await authFetch('/bookings', { method: 'GET' })
+  async function listBookings(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/bookings${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -444,15 +491,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function listUsers(query = '', options = {}) {
-    let finalQuery = query
-    let finalOptions = options
-
-    if (typeof query === 'object' && query !== null) {
-      finalOptions = query
-      finalQuery = ''
-    }
-
-    const suffix = finalQuery ? `?${finalQuery}` : ''
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
     const payload = await authFetch(`/users${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
 

@@ -1,8 +1,6 @@
-# 🏡 SocioNeed - Society Management System
+# SocioNeed - Society Management System
 
-A modern **Society Management System** developed as part of the **Software Engineering Course Project**.
-
-SocioNeed simplifies the management of residential communities by providing dedicated portals for Residents, Admins, Service Providers, and Security Staff. The current implementation focuses on a complete frontend with mock authentication and is ready for backend integration.
+SocioNeed is a full-stack society management application with role-based portals for Residents, Admins, Service Providers, and Security Staff.
 
 ---
 
@@ -21,78 +19,100 @@ SocioNeed provides a centralized platform for managing society operations, inclu
 
 ---
 
-# 🚀 Tech Stack
+# Tech Stack
 
 - Vue 3 (Composition API)
 - Vite
 - Vue Router
 - Pinia
-- CSS3
-- JavaScript (ES6+)
-- Mock Data
-
+- Flask
+- SQLAlchemy
+- JWT
+- SQLite
+# Project Structure
 ---
 
-# ✨ Implemented Features
-
-## 🌐 Public Website
-
-- Landing Page
-- About Us
-- Services
-- How It Works
-- Contact Page
-
----
-
-## 🔐 Authentication
-
-- Login Page
-- Register Page
-- Role Selection
-- Mock Authentication
-- Form Validation
-- Error Handling
-- Role-based Login
-- Protected Dashboard Access
-
----
-
-## 👤 Resident Portal
+SE_CSP_PROJECT/
+├── backend/
+│   ├── app/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── run.py
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── vite.config.js
+├── docs/
+├── src/            (legacy frontend artifacts)
+├── public/         (legacy frontend artifacts)
+└── README.md
 
 - Dashboard
 - My Complaints
 - Notices
-- Events
-- Service Booking
-- Maintenance Bills
+# Installation
+
+Clone the repository:
 - Family Members
 
 ---
+cd SE_CSP_PROJECT
 
 ## 🛡 Admin Portal
-
+Install frontend dependencies (from frontend folder):
 - Dashboard
 - User Management
-- Complaint Management
+cd frontend
+npm install
 - Notice Management
 - Service Provider Management
-- Reports & Analytics
+Install backend dependencies (from backend folder):
+
+---
+cd ../backend
+python -m pip install -r requirements.txt
+## 👨‍🔧 Service Provider Portal
 
 ---
 
-## 👨‍🔧 Service Provider Portal
+# Running Locally
 
-- Dashboard
+Start backend:
+
+```bash
+cd backend
+python run.py
+```
+
+Start frontend:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Important:
+- Do not run npm commands from SE_CSP_PROJECT root.
+- `package.json` is located in `frontend/package.json`.
+- Running `npm install` or `npm run dev` from project root causes ENOENT package.json errors.
+
+Health checks:
+
 - Assigned Services
-- Service Requests
+# backend
+http://127.0.0.1:5000/health
+
+# frontend
+http://127.0.0.1:5173/
 - Work History
 - Profile
 
 ---
-
+# Production Build
 ## 👮 Security Portal
 
+cd frontend
 - Dashboard
 - Visitor Entry
 - Visitor Exit
@@ -195,22 +215,8 @@ npm run build
 
 ---
 
-# 🔄 Backend Integration (Upcoming)
-
-The frontend is fully prepared for backend integration.
-
-Backend tasks include:
-
-- User Authentication API
-- Database Integration
-- JWT Authentication
-- CRUD Operations
-- Complaint APIs
-- Notice APIs
-- Event APIs
-- Service Booking APIs
-- Maintenance Billing APIs
-- Notifications
+For complete full-stack setup, troubleshooting, and environment configuration, see:
+- SETUP_AND_RUN_GUIDE.md
 
 ---
 

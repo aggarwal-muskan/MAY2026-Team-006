@@ -132,7 +132,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
@@ -164,6 +164,12 @@ const showProviderForm = ref(false)
 const isExporting = ref(false)
 const userSearchQuery = ref('')
 
+const activeSearchQuery = computed(() => {
+  const local = String(userSearchQuery.value || '').trim()
+  if (local) return local
+  return String(route.query.q || '').trim()
+})
+
 const noticeForm = reactive({ title: '', body: '', notice_type: 'maintenance', priority: 'normal' })
 const eventForm = reactive({ title: '', description: '', event_date: '', start_time: '', venue: '' })
 const residentForm = reactive({ full_name: '', email: '', phone: '', password: '' })
@@ -183,8 +189,15 @@ const pendingComplaintsCount = computed(() => {
   return backendComplaints.value.filter((item) => ['open', 'in_progress'].includes(String(item.status || '').toLowerCase())).length
 })
 
+function matchesSearch(item, query) {
+  if (!query) return true
+  const token = String(query).toLowerCase()
+  const values = Object.values(item || {}).map((value) => String(value || '').toLowerCase())
+  return values.some((value) => value.includes(token))
+}
+
 const filteredUsers = computed(() => {
-  const query = String(userSearchQuery.value || '').trim().toLowerCase()
+  const query = String(activeSearchQuery.value || '').trim().toLowerCase()
   if (!query) return backendUsers.value
 
   return backendUsers.value.filter((user) => {
@@ -217,19 +230,27 @@ const residentRows = computed(() => {
 })
 
 const providerRows = computed(() => {
-  return backendProviders.value
+  const query = String(activeSearchQuery.value || '').trim().toLowerCase()
+  if (!query) return backendProviders.value
+  return backendProviders.value.filter((item) => matchesSearch(item, query))
 })
 
 const complaintRows = computed(() => {
-  return backendComplaints.value
+  const query = String(activeSearchQuery.value || '').trim().toLowerCase()
+  if (!query) return backendComplaints.value
+  return backendComplaints.value.filter((item) => matchesSearch(item, query))
 })
 
 const noticeRows = computed(() => {
-  return backendNotices.value
+  const query = String(activeSearchQuery.value || '').trim().toLowerCase()
+  if (!query) return backendNotices.value
+  return backendNotices.value.filter((item) => matchesSearch(item, query))
 })
 
 const eventRows = computed(() => {
-  return backendEvents.value
+  const query = String(activeSearchQuery.value || '').trim().toLowerCase()
+  if (!query) return backendEvents.value
+  return backendEvents.value.filter((item) => matchesSearch(item, query))
 })
 
 const assignableUsers = computed(() => {
@@ -239,14 +260,16 @@ const assignableUsers = computed(() => {
     .map((user) => ({ id: user.id, name: user.full_name || user.name || `User #${user.id}` }))
 })
 
-async function loadAllUsers() {
+async function loadAllUsers(searchTerm = '') {
   const limit = 100
   let page = 1
   let pages = 1
   const allItems = []
 
   do {
-    const query = new URLSearchParams({ page: String(page), limit: String(limit) }).toString()
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (searchTerm) params.set('search', searchTerm)
+    const query = params.toString()
     const payload = await authStore.listUsers(query, { withMeta: true })
     const items = payload?.items || []
     allItems.push(...items)
@@ -309,6 +332,9 @@ async function loadAdminData() {
       await authStore.fetchMe()
     }
     if (authStore.token) {
+      const searchTerm = String(activeSearchQuery.value || '').trim()
+      const searchQueryString = searchTerm ? new URLSearchParams({ search: searchTerm }).toString() : ''
+
       const [
         usersResult,
         providersResult,
@@ -321,11 +347,11 @@ async function loadAdminData() {
         categoriesResult,
         monthlyReportResult,
       ] = await Promise.allSettled([
-        loadAllUsers(),
-        authStore.listProviders(),
-        authStore.listComplaints(),
-        authStore.listNotices(),
-        authStore.listEvents(),
+        loadAllUsers(searchTerm),
+        authStore.listProviders(searchQueryString),
+        authStore.listComplaints(searchQueryString),
+        authStore.listNotices(searchQueryString),
+        authStore.listEvents(searchQueryString),
         authStore.getAdminDashboardStats(),
         authStore.getBookingsAnalytics(),
         authStore.getComplaintsAnalytics(),
@@ -521,6 +547,13 @@ async function removeEvent(eventId) {
 onMounted(() => {
   loadAdminData()
 })
+
+watch(
+  () => route.query.q,
+  () => {
+    loadAdminData()
+  }
+)
 </script>
 
 <style scoped>

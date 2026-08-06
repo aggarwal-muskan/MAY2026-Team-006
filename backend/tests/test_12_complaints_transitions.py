@@ -5,9 +5,7 @@ Notes:
   "side-effect" of assign/status changes is the ComplaintUpdate audit trail
   appended to the complaint; these tests assert those records are created with
   the right status/comment, which is the notification analogue in this system.
-- The status endpoint performs NO state-machine validation, so arbitrary status
-  strings are accepted today. That behaviour is pinned so a future validation
-  change is caught deliberately.
+- The status endpoint validates status values and rejects unknown statuses.
 """
 
 
@@ -102,17 +100,16 @@ def test_status_update_records_audit_entry(client, admin_token, resident_token):
     assert last["comment"] == "Fixed on site"
 
 
-def test_status_update_accepts_arbitrary_status_today(client, admin_token, resident_token):
-    """GAP: no transition state-machine, so an invalid status string is accepted."""
+def test_status_update_rejects_unknown_status_value(client, admin_token, resident_token):
+    """Validation: invalid complaint statuses should be rejected."""
     cid = _raise_complaint(client, resident_token)
     resp = client.put(
         f"/api/complaints/{cid}/status",
         headers=_auth(admin_token),
         json={"status": "not_a_real_status", "comment": "arbitrary"},
     )
-    # Pinned current behaviour. If a transition validator is added, expect 400/422 instead.
-    assert resp.status_code == 200
-    assert resp.get_json()["data"]["status"] == "not_a_real_status"
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_status_update_forbidden_for_non_assignee(client, admin_token, resident_token, provider_token):
