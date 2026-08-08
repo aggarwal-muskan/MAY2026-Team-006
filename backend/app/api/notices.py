@@ -1,4 +1,5 @@
-﻿from datetime import UTC, datetime
+﻿import json
+from datetime import UTC, datetime
 
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
@@ -12,6 +13,33 @@ from app.services.query_service import paginate_query
 
 
 notices_bp = Blueprint("notices", __name__, url_prefix="/notices")
+
+
+def _serialize_notice(notice: Notice) -> dict:
+    """Notice dict with `translations` returned as a parsed object (or {})."""
+    data = notice.to_dict()
+    raw = data.get("translations")
+    if isinstance(raw, str) and raw.strip():
+        try:
+            parsed = json.loads(raw)
+            data["translations"] = parsed if isinstance(parsed, dict) else {}
+        except (ValueError, TypeError):
+            data["translations"] = {}
+    else:
+        data["translations"] = {}
+    return data
+
+
+def _clean_translations(value) -> str | None:
+    """Validate a translations payload and return it as a JSON string (or None)."""
+    if not isinstance(value, dict) or not value:
+        return None
+    cleaned = {
+        str(lang).strip(): str(text).strip()
+        for lang, text in value.items()
+        if str(lang).strip() and str(text).strip()
+    }
+    return json.dumps(cleaned, ensure_ascii=False) if cleaned else None
 
 
 @notices_bp.get("")
@@ -33,7 +61,7 @@ def list_notices():
         query = query.filter(db.or_(Notice.title.ilike(f"%{search}%"), Notice.body.ilike(f"%{search}%")))
 
     items, pagination = paginate_query(query.order_by(Notice.publish_at.desc()))
-    return ok({"items": [i.to_dict() for i in items], "pagination": pagination})
+    return ok({"items": [_serialize_notice(i) for i in items], "pagination": pagination})
 
 
 @notices_bp.get("/<int:notice_id>")
@@ -42,7 +70,7 @@ def get_notice(notice_id):
     notice = db.session.get(Notice, notice_id)
     if not notice:
         return fail("Notice not found", "NOT_FOUND", 404)
-    return ok(notice.to_dict())
+    return ok(_serialize_notice(notice))
 
 
 @notices_bp.post("")
@@ -65,10 +93,11 @@ def create_notice():
         priority=data.get("priority", "normal"),
         publish_at=parse_datetime(data.get("publish_at")) or datetime.now(UTC),
         expires_at=parse_datetime(data.get("expires_at")),
+        translations=_clean_translations(data.get("translations")),
     )
     db.session.add(notice)
     db.session.commit()
-    return ok(notice.to_dict(), "Notice created", 201)
+    return ok(_serialize_notice(notice), "Notice created", 201)
 
 
 @notices_bp.put("/<int:notice_id>")
@@ -83,13 +112,15 @@ def update_notice(notice_id):
         if field in data:
             setattr(notice, field, data[field])
 
+    if "translations" in data:
+        notice.translations = _clean_translations(data["translations"])
     if "publish_at" in data:
         notice.publish_at = parse_datetime(data["publish_at"])
     if "expires_at" in data:
         notice.expires_at = parse_datetime(data["expires_at"])
 
     db.session.commit()
-    return ok(notice.to_dict(), "Notice updated")
+    return ok(_serialize_notice(notice), "Notice updated")
 
 
 @notices_bp.delete("/<int:notice_id>")
@@ -112,6 +143,6 @@ def publish_notice(notice_id):
 
     notice.publish_at = datetime.now(UTC)
     db.session.commit()
-    return ok(notice.to_dict(), "Notice published")
+    return ok(_serialize_notice(notice), "Notice published")
 
 

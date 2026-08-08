@@ -1,5 +1,6 @@
 from flask import Blueprint
 
+from app.api.ai import ai_bp
 from app.api.analytics import analytics_bp, reports_bp
 from app.api.auth import auth_bp
 from app.api.bookings import bookings_bp
@@ -32,5 +33,6 @@ def create_api_blueprint():
     api.register_blueprint(visitors_bp)
     api.register_blueprint(analytics_bp)
     api.register_blueprint(reports_bp)
+    api.register_blueprint(ai_bp)
 
     return api
