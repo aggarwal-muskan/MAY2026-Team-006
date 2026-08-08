@@ -35,6 +35,42 @@ def test_get_notice_by_id(client, resident_token, admin_token):
     client.delete(f"/api/notices/{notice_id}", headers=_auth(admin_token))
 
 
+def test_notice_stores_translations_separately(client, admin_token, resident_token):
+    # Admin publishes English body + per-language translations (not concatenated).
+    resp = client.post(
+        "/api/notices",
+        headers=_auth(admin_token),
+        json={
+            "title": "Society Cleaning Drive",
+            "body": "Cleaning drive on Saturday from 1 AM to 2 AM.",
+            "notice_type": "maintenance",
+            "priority": "normal",
+            "translations": {"Hindi": "शनिवार सफाई अभियान", "Telugu": "శనివారం శుభ్రత"},
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.get_json()["data"]
+    # Body stays English-only; translations returned as a parsed object.
+    assert data["body"] == "Cleaning drive on Saturday from 1 AM to 2 AM."
+    assert data["translations"]["Hindi"] == "शनिवार सफाई अभियान"
+    assert data["translations"]["Telugu"] == "శనివారం శుభ్రత"
+
+    # Resident can read them to render their preferred language.
+    listed = client.get("/api/notices", headers=_auth(resident_token)).get_json()["data"]["items"]
+    match = next(n for n in listed if n["id"] == data["id"])
+    assert match["translations"]["Hindi"] == "शनिवार सफाई अभियान"
+
+
+def test_notice_without_translations_returns_empty_object(client, admin_token):
+    resp = client.post(
+        "/api/notices",
+        headers=_auth(admin_token),
+        json={"title": "Plain", "body": "No translations here.", "notice_type": "general", "priority": "low"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["data"]["translations"] == {}
+
+
 def test_event_lifecycle_and_registration(client, admin_token, resident_token):
     event = client.post(
         "/api/events",
