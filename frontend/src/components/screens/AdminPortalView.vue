@@ -1,7 +1,6 @@
 <template>
   <div class="portal-screen admin-screen">
     <template v-if="page === 'dashboard'">
-      <div class="dashboard-shell">
       <div class="screen-header">
         <h1>Admin Dashboard</h1>
         <p>Overview of residents, complaints, bookings, and events.</p>
@@ -29,7 +28,6 @@
             <div class="progress"><span :style="{ width: `${Math.min(value * 4, 100)}%` }"></span></div>
           </div>
         </section>
-      </div>
       </div>
     </template>
 
@@ -59,7 +57,72 @@
 
     <template v-else-if="page === 'complaints'">
       <div class="screen-header"><h1>Complaints Management</h1><p>Assign and track complaint resolution.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Resident</th><th>Status</th><th>Assign</th></tr></thead><tbody><tr v-for="complaint in complaintRows" :key="complaint.id"><td>{{ complaint.id }}</td><td>{{ complaint.subject || complaint.title }}</td><td>{{ complaint.raised_by_user_id || complaint.resident || '-' }}</td><td><span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span></td><td><div class="row-actions"><select v-model="complaintAssignments[complaint.id]"><option disabled value="">Select user</option><option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option></select><button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">Assign</button></div></td></tr></tbody></table></div>
+
+      <div v-if="emergingIssues.length > 0" class="emerging-issues">
+        <h3 class="card-title">Emerging Issues</h3>
+        <div class="card-grid issue-grid">
+          <button
+            v-for="issue in emergingIssues"
+            :key="issue.category + issue.title"
+            class="card issue-card"
+            type="button"
+            @click="openCluster(issue)"
+          >
+            <div class="issue-icon">{{ categoryIcon(issue.category) }}</div>
+            <div class="issue-category">{{ issue.category }}</div>
+            <div class="issue-title">{{ issue.title }}</div>
+            <div class="issue-count">Review similar complaints</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Resident</th><th>Status</th><th>Assign</th></tr></thead><tbody><tr v-for="complaint in complaintRows" :key="complaint.id"><td>{{ complaint.id }}</td><td>{{ complaint.subject || complaint.title }}</td><td>{{ complaint.raised_by_user_id || complaint.resident || '-' }}</td><td><span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span></td><td>
+        <div class="row-actions" v-if="!complaint.assigned_to_user_id">
+          <select v-model="complaintAssignments[complaint.id]"><option disabled value="">Select user</option><option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option></select>
+          <button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">Assign</button>
+        </div>
+        <div class="row-actions assigned-row" v-else>
+          <span class="already-assigned-text">Already assigned{{ assignedProviderName(complaint) ? ` to ${assignedProviderName(complaint)}` : '' }}</span>
+          <select disabled><option>{{ assignedProviderName(complaint) || 'Assigned' }}</option></select>
+          <button class="btn btn-sm btn-reassign" @click="removeComplaintAssignment(complaint)">Reassign</button>
+        </div>
+      </td></tr></tbody></table></div>
+
+      <div v-if="activeCluster" class="modal-overlay" @click.self="closeClusterModal">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <div>
+              <h3>{{ categoryIcon(activeCluster.category) }} {{ activeCluster.category }} — {{ activeCluster.title }}</h3>
+              <p>{{ activeCluster.count }} complaints in this cluster</p>
+            </div>
+            <button class="btn btn-outline btn-sm" @click="closeClusterModal">Close</button>
+          </div>
+          <div class="modal-body">
+            <div v-for="complaint in clusterComplaints" :key="complaint.id" class="cluster-row">
+              <div class="cluster-row-main">
+                <strong>#{{ complaint.id }} — {{ complaint.subject }}</strong>
+                <p>{{ complaint.description }}</p>
+                <span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span>
+              </div>
+              <div class="cluster-row-actions">
+                <div class="row-actions" v-if="!complaint.assigned_to_user_id">
+                  <select v-model="complaintAssignments[complaint.id]">
+                    <option disabled value="">Select provider</option>
+                    <option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option>
+                  </select>
+                  <button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">Assign</button>
+                </div>
+                <div class="row-actions assigned-row" v-else>
+                  <span class="already-assigned-text">Already assigned{{ assignedProviderName(complaint) ? ` to ${assignedProviderName(complaint)}` : '' }}</span>
+                  <select disabled><option>{{ assignedProviderName(complaint) || 'Assigned' }}</option></select>
+                  <button class="btn btn-sm btn-reassign" @click="removeComplaintAssignment(complaint)">Reassign</button>
+                </div>
+              </div>
+            </div>
+            <div v-if="clusterComplaints.length === 0" class="list-row">These complaints have since moved out of this cluster's list.</div>
+          </div>
+        </div>
+      </div>
     </template>
 
     <template v-else-if="page === 'notices'">
@@ -136,12 +199,15 @@ const page = computed(() => route.meta.page || 'dashboard')
 
 const backendUsers = ref([])
 const backendProviders = ref([])
+const backendProviderUsers = ref([])
 const backendComplaints = ref([])
 const backendNotices = ref([])
 const backendEvents = ref([])
 const adminDashboardStats = ref({})
 const complaintAssignments = ref({})
 const bookingStatusBreakdown = ref({})
+const emergingIssues = ref([])
+const activeCluster = ref(null)
 
 const noticeForm = reactive({ title: '', body: '', notice_type: 'maintenance', priority: 'normal' })
 const eventForm = reactive({ title: '', description: '', event_date: '', start_time: '', venue: '' })
@@ -183,7 +249,14 @@ const eventRows = computed(() => {
 })
 
 const assignableUsers = computed(() => {
-  return backendUsers.value.map((user) => ({ id: user.id, name: user.full_name || user.name || `User #${user.id}` }))
+  return backendProviderUsers.value
+    .map((user) => ({ id: user.id, name: user.full_name || user.name || `User #${user.id}` }))
+})
+
+const clusterComplaints = computed(() => {
+  if (!activeCluster.value) return []
+  const ids = new Set(activeCluster.value.complaint_ids || [])
+  return backendComplaints.value.filter((complaint) => ids.has(complaint.id))
 })
 
 const adminAnalytics = computed(() => {
@@ -232,15 +305,39 @@ async function loadAdminData() {
     if (authStore.token) {
       backendUsers.value = await authStore.listUsers()
       backendProviders.value = await authStore.listProviders()
+      backendProviderUsers.value = await authStore.listUsers('role=service_provider&limit=100')
       backendComplaints.value = await authStore.listComplaints()
       backendNotices.value = await authStore.listNotices()
       backendEvents.value = await authStore.listEvents()
       adminDashboardStats.value = await authStore.getAdminDashboardStats()
       bookingStatusBreakdown.value = await authStore.getBookingsAnalytics()
+      await loadEmergingIssues()
     }
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to load admin data')
   }
+}
+
+async function loadEmergingIssues() {
+  try {
+    emergingIssues.value = await authStore.getEmergingIssues()
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to load emerging issues')
+    emergingIssues.value = []
+  }
+}
+
+function categoryIcon(category) {
+  const icons = { Electrical: '⚡', Plumbing: '🔧', Maintenance: '🛠', Security: '🛡' }
+  return icons[category] || '📋'
+}
+
+function openCluster(issue) {
+  activeCluster.value = issue
+}
+
+function closeClusterModal() {
+  activeCluster.value = null
 }
 
 async function assignComplaintToUser(complaint) {
@@ -256,6 +353,22 @@ async function assignComplaintToUser(complaint) {
     notify.success('Complaint assigned successfully')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to assign complaint')
+  }
+}
+
+function assignedProviderName(complaint) {
+  if (!complaint.assigned_to_user_id) return ''
+  const provider = backendProviderUsers.value.find((person) => person.id === complaint.assigned_to_user_id)
+  return provider ? (provider.full_name || provider.name || '') : ''
+}
+
+async function removeComplaintAssignment(complaint) {
+  try {
+    await authStore.unassignComplaint(complaint.id)
+    backendComplaints.value = await authStore.listComplaints()
+    notify.success('Assignment removed')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to remove assignment')
   }
 }
 
@@ -328,7 +441,7 @@ onMounted(() => {
 .screen-header h1 { margin: 0; }
 .screen-header p { color: var(--color-text-secondary); }
 .screen-header.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.stat-grid, .card-grid, .content-grid { display: grid; gap: var(--space-5); }
+.stat-grid, .card-grid, .content-grid { display: grid; gap: var(--space-4); }
 .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .admin-stats .stat-value { font-size: var(--text-3xl); font-weight: var(--font-bold); margin-top: var(--space-2); }
 .content-grid.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -343,89 +456,76 @@ onMounted(() => {
 .toolbar input { width: 100%; }
 .notice-row, .report-card { display: grid; gap: var(--space-3); }
 .row-actions { display: flex; gap: var(--space-2); }
-.form-card { display: grid; gap: var(--space-5); }
-.form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
-.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) 0; }
+.form-card { display: grid; gap: var(--space-4); }
+.form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+
+.emerging-issues { display: grid; gap: var(--space-3); }
+.issue-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.issue-card {
+  display: grid;
+  gap: var(--space-1);
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface, #fff);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.issue-card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+.issue-icon { font-size: 1.5rem; }
+.issue-category { font-size: var(--text-xs, 0.75rem); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-secondary); }
+.issue-title { font-weight: var(--font-bold); font-size: var(--text-lg, 1.05rem); }
+.issue-count { color: var(--color-text-secondary); font-size: var(--text-sm, 0.85rem); }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 20, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 1000;
+}
+.modal-panel {
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg, 12px);
+  max-width: 720px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.modal-header h3 { margin: 0 0 var(--space-1) 0; }
+.modal-header p { margin: 0; color: var(--color-text-secondary); }
+.modal-body { padding: var(--space-5); overflow-y: auto; display: grid; gap: var(--space-4); }
+.cluster-row {
+  display: grid;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.cluster-row:last-child { border-bottom: none; padding-bottom: 0; }
+.cluster-row-main p { color: var(--color-text-secondary); margin: var(--space-1) 0; }
+.cluster-row-actions { display: flex; }
+.cluster-row-actions .row-actions { flex: 1; display: flex; gap: var(--space-2); }
+.cluster-row-actions .row-actions select { flex: 1; }
+.already-assigned-text { color: var(--color-text-secondary); font-size: var(--text-sm, 0.85rem); white-space: nowrap; }
+.assigned-row select { flex: 1; opacity: 0.6; cursor: not-allowed; }
+.btn-reassign { background-color: #7c3aed; color: #fff; border: none; }
+.btn-reassign:hover { background-color: #6d28d9; }
+
 @media (max-width: 960px) {
   .stat-grid, .content-grid.two-col, .card-grid.three-col, .form-grid.two-col { grid-template-columns: 1fr; }
   .screen-header.row-between { flex-direction: column; align-items: flex-start; }
-}
-
-.dashboard-shell {
-  display: grid;
-  gap: var(--space-6);
-}
-
-.dashboard-shell .screen-header {
-  padding: var(--space-6);
-  border: 1px solid rgba(37, 99, 235, 0.08);
-  border-radius: var(--radius-2xl);
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 28%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
-}
-
-.dashboard-shell .screen-header h1 {
-  font-size: clamp(2rem, 2.8vw, 3rem);
-}
-
-.dashboard-shell .stat-grid {
-  gap: var(--space-5);
-}
-
-.dashboard-shell .stat-card,
-.dashboard-shell .chart-card,
-.dashboard-shell .notice-row,
-.dashboard-shell .report-card,
-.dashboard-shell .form-card {
-  border: 1px solid rgba(229, 231, 235, 0.9);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
-  box-shadow: var(--shadow-sm);
-}
-
-.dashboard-shell .stat-card {
-  padding: var(--space-5);
-}
-
-.dashboard-shell .stat-card .stat-value {
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-}
-
-.dashboard-shell .chart-card,
-.dashboard-shell .form-card {
-  padding: var(--space-5);
-}
-
-.dashboard-shell .bar-chart {
-  min-height: 240px;
-}
-
-.dashboard-shell .bar {
-  background: linear-gradient(180deg, var(--color-primary-light), var(--color-primary-dark));
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
-}
-
-.dashboard-shell .progress {
-  height: 12px;
-}
-
-.dashboard-shell .toolbar {
-  padding: var(--space-4);
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.dashboard-shell .notice-row,
-.dashboard-shell .report-card {
-  padding: var(--space-5) var(--space-6);
-}
-
-.dashboard-shell .switch-row {
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.dashboard-shell .switch-row:last-child {
-  border-bottom: none;
 }
 </style>

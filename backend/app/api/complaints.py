@@ -6,7 +6,14 @@ from flask_jwt_extended import jwt_required
 from app.api.utils import current_user
 from app.core.extensions import db
 from app.core.responses import fail, ok
-from app.core.security import ROLE_ADMIN, ROLE_OWNER, ROLE_SECURITY, ROLE_TENANT, roles_required
+from app.core.security import (
+    ROLE_ADMIN,
+    ROLE_OWNER,
+    ROLE_SECURITY,
+    ROLE_SERVICE_PROVIDER,
+    ROLE_TENANT,
+    roles_required,
+)
 from app.models import Complaint, ComplaintUpdate
 from app.services.query_service import paginate_query
 
@@ -24,6 +31,8 @@ def list_complaints():
         query = query.filter(Complaint.raised_by_user_id == user.id)
     elif user.role == ROLE_SECURITY:
         query = query.filter(Complaint.category == "Security")
+    elif user.role == ROLE_SERVICE_PROVIDER:
+        query = query.filter(Complaint.assigned_to_user_id == user.id)
 
     for field in ["status", "category", "priority", "assigned_to_user_id", "society_id"]:
         value = request.args.get(field)
@@ -119,6 +128,21 @@ def assign_complaint(complaint_id):
         return fail("Complaint not found", "NOT_FOUND", 404)
 
     data = request.get_json() or {}
+
+    if data.get("unassign"):
+        complaint.assigned_to_user_id = None
+        complaint.status = "open"
+        update = ComplaintUpdate(
+            complaint_id=complaint.id,
+            updated_by_user_id=user.id,
+            status=complaint.status,
+            comment=data.get("comment", "Assignment removed"),
+            updated_at=datetime.now(UTC),
+        )
+        db.session.add(update)
+        db.session.commit()
+        return ok(complaint.to_dict(), "Assignment removed")
+
     if not data.get("assigned_to_user_id"):
         return fail("assigned_to_user_id is required", "VALIDATION_ERROR", 400)
 

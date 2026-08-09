@@ -68,6 +68,7 @@ const routes = [
 
   // ── Service Provider Routes ──
   { path: '/provider/dashboard', name: 'ProviderDashboard', component: ProviderScreen, meta: { layout: 'portal', role: 'provider', sidebar: 'provider', page: 'dashboard' } },
+  { path: '/provider/complaints', name: 'ProviderComplaints', component: ProviderScreen, meta: { layout: 'portal', role: 'provider', sidebar: 'provider', page: 'complaints' } },
   { path: '/provider/bookings', name: 'ProviderBookings', component: ProviderScreen, meta: { layout: 'portal', role: 'provider', sidebar: 'provider', page: 'bookings' } },
   { path: '/provider/availability', name: 'ProviderAvailability', component: ProviderScreen, meta: { layout: 'portal', role: 'provider', sidebar: 'provider', page: 'availability' } },
   { path: '/provider/services', name: 'ProviderServices', component: ProviderScreen, meta: { layout: 'portal', role: 'provider', sidebar: 'provider', page: 'services' } },

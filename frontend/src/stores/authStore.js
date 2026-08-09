@@ -281,6 +281,32 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
+  async function unassignComplaint(complaintId, comment = 'Assignment removed') {
+    const payload = await authFetch(`/complaints/${complaintId}/assign`, {
+      method: 'PUT',
+      body: JSON.stringify({ unassign: true, comment }),
+    })
+    return payload?.data || null
+  }
+
+  async function updateComplaintStatus(complaintId, status, comment) {
+    const payload = await authFetch(`/complaints/${complaintId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, comment }),
+    })
+    return payload?.data || null
+  }
+
+  async function getEmergingIssues() {
+    const payload = await authFetch('/complaints/emerging', { method: 'GET' })
+    return payload?.data || []
+  }
+
+  async function debugEmergingIssues() {
+    const payload = await authFetch('/complaints/emerging/debug', { method: 'GET' })
+    return payload?.data || {}
+  }
+
   async function listProviders(options = {}) {
     const payload = await authFetch('/providers', { method: 'GET' })
     const items = payload?.data?.items || []
@@ -469,6 +495,10 @@ export const useAuthStore = defineStore('auth', () => {
     getComplaint,
     createComplaint,
     assignComplaint,
+    unassignComplaint,
+    updateComplaintStatus,
+    getEmergingIssues,
+    debugEmergingIssues,
     listProviders,
     listServiceCategories,
     getProvider,

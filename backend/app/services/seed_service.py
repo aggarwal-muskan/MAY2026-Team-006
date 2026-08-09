@@ -267,6 +267,8 @@ def _seed_demo_transactions(society):
                 )
             )
 
+    _seed_emerging_issues_demo_complaints(society, resident_user, admin_user, now)
+
     if ServiceBooking.query.count() == 0 and provider_profile:
         bookings = [
             ServiceBooking(
@@ -289,6 +291,148 @@ def _seed_demo_transactions(society):
             ),
         ]
         db.session.add_all(bookings)
+
+    db.session.commit()
+
+
+def _seed_emerging_issues_demo_complaints(society, resident_user, admin_user, now):
+    """Seeds ~20 complaints across 3 recurring issue themes (>=5 each) so the
+    Emerging Issues clustering feature has something meaningful to cluster.
+    Idempotent: checks a marker complaint before inserting, so re-running the
+    seed (e.g. on every server start) never duplicates these rows."""
+
+    marker = Complaint.query.filter_by(subject="Corridor lights not working", category="Electrical").first()
+    if marker:
+        return
+
+    demo_complaints = [
+        # Cluster 1 — Electrical: corridor lights (6 complaints)
+        {
+            "subject": "Corridor lights not working",
+            "description": "The lights in the corridor on our floor have not been working for the past two days.",
+            "category": "Electrical",
+        },
+        {
+            "subject": "Corridor light issue near lift",
+            "description": "The corridor light near the lift lobby has stopped working.",
+            "category": "Electrical",
+        },
+        {
+            "subject": "Passage lights are off",
+            "description": "Most of the passage lights on the third floor are off since yesterday evening.",
+            "category": "Electrical",
+        },
+        {
+            "subject": "No light in the common corridor",
+            "description": "The common corridor lighting is not functioning near Block B.",
+            "category": "Electrical",
+        },
+        {
+            "subject": "corridor light not working again",
+            "description": "the light near the staircase in the corridor has fused and needs replacement",
+            "category": "Electrical",
+        },
+        {
+            "subject": "Dark corridor at night",
+            "description": "The corridor near the entrance remains dark at night because the lights are not working.",
+            "category": "Electrical",
+        },
+        # Cluster 2 — Plumbing: water leakage near basement/pipes (7 complaints)
+        {
+            "subject": "Water leakage near basement",
+            "description": "There has been continuous water leakage from a pipe near the basement parking.",
+            "category": "Plumbing",
+        },
+        {
+            "subject": "Pipe leaking near parking area",
+            "description": "A pipeline is leaking and water is collecting around the parking area.",
+            "category": "Plumbing",
+        },
+        {
+            "subject": "Water leak from pipe outside flat",
+            "description": "The pipe outside my apartment on the second floor is leaking continuously.",
+            "category": "Plumbing",
+        },
+        {
+            "subject": "Leakage from pipeline in Block B",
+            "description": "There is a pipeline leakage in Block B near the basement wall.",
+            "category": "Plumbing",
+        },
+        {
+            "subject": "water keeps leaking near basement",
+            "description": "water keeps leaking near the basement and has been an issue for a week now",
+            "category": "Plumbing",
+        },
+        {
+            "subject": "Pipe burst near parking lot",
+            "description": "A water pipe has burst near the parking lot and water is spreading across the floor.",
+            "category": "Plumbing",
+        },
+        {
+            "subject": "Basement water leak worsening",
+            "description": "The leakage near the basement pipe seems to be getting worse day by day.",
+            "category": "Plumbing",
+        },
+        # Cluster 3 — Security: CCTV not working (7 complaints)
+        {
+            "subject": "CCTV not working near gate",
+            "description": "The CCTV camera near the main gate is not working since this morning.",
+            "category": "Security",
+        },
+        {
+            "subject": "Camera near entrance is blank",
+            "description": "The camera near the entrance shows a blank screen and does not seem to be recording.",
+            "category": "Security",
+        },
+        {
+            "subject": "CCTV footage not recording",
+            "description": "The CCTV footage from the parking area camera is not being recorded properly.",
+            "category": "Security",
+        },
+        {
+            "subject": "cctv near gate is blank",
+            "description": "cctv near the gate is showing a blank screen, please check",
+            "category": "Security",
+        },
+        {
+            "subject": "Security camera not working",
+            "description": "One of the security cameras near the lift lobby has stopped working.",
+            "category": "Security",
+        },
+        {
+            "subject": "CCTV screen shows no feed",
+            "description": "The CCTV monitor at the security desk shows no feed from camera 3 near the gate.",
+            "category": "Security",
+        },
+        {
+            "subject": "Camera near parking not working",
+            "description": "The CCTV camera covering the parking area is not functioning properly.",
+            "category": "Security",
+        },
+    ]
+
+    for payload in demo_complaints:
+        complaint = Complaint(
+            society_id=society.id,
+            raised_by_user_id=resident_user.id,
+            assigned_to_user_id=None,
+            subject=payload["subject"],
+            description=payload["description"],
+            category=payload["category"],
+            priority="medium",
+            status="open",
+        )
+        db.session.add(complaint)
+        db.session.flush()
+        db.session.add(
+            ComplaintUpdate(
+                complaint_id=complaint.id,
+                updated_by_user_id=admin_user.id,
+                status=complaint.status,
+                comment="Seeded demo complaint for Emerging Issues testing",
+                updated_at=now,
+            )
+        )
 
     db.session.commit()
 
