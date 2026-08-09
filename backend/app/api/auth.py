@@ -11,9 +11,12 @@ from app.services.auth_service import hash_password, verify_password
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+SELF_REGISTERABLE_ROLES = {"owner", "tenant"}
+
 ROLE_ALIASES = {
     "resident": "owner",
     "owner": "owner",
+    "tenant": "tenant",
     "admin": "admin",
     "provider": "service_provider",
     "service_provider": "service_provider",
@@ -36,6 +39,18 @@ def register():
     if len(data["password"]) < 6:
         return fail("Password must be at least 6 characters long", "VALIDATION_ERROR", 400)
 
+    # D-01 / D-02 fix: the role arrives from an unauthenticated request body, so it
+    # must be both a known role and one that a person is allowed to give themselves.
+    requested_role = ROLE_ALIASES.get(str(data["role"]).strip().lower())
+    if not requested_role:
+        return fail(f"Invalid role: {data['role']}", "VALIDATION_ERROR", 400)
+    if requested_role not in SELF_REGISTERABLE_ROLES:
+        return fail(
+            f"The '{requested_role}' role cannot be self-assigned. It must be created by an administrator.",
+            "ROLE_NOT_SELF_ASSIGNABLE",
+            403,
+        )
+
     if User.query.filter_by(email=data["email"]).first():
         return fail("Email already registered", "DUPLICATE_EMAIL", 409)
 
@@ -45,7 +60,7 @@ def register():
 
     user = User(
         society_id=society.id,
-        role=data["role"],
+        role=requested_role,
         full_name=data["full_name"],
         email=data["email"],
         phone=data.get("phone"),

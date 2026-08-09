@@ -50,6 +50,20 @@ def create_unit():
     if missing:
         return fail(f"Missing required fields: {', '.join(missing)}", "VALIDATION_ERROR", 400)
 
+    # D-03 fix: reject duplicates at the API layer with a domain error instead of
+    # letting a raw database constraint violation surface (or slip through when
+    # block_name is NULL, because NULL never equals NULL in a unique index).
+    duplicate = Unit.query.filter_by(
+        society_id=data["society_id"],
+        unit_number=data["unit_number"],
+    ).first()
+    if duplicate:
+        return fail(
+            f"Unit {data['unit_number']} already exists in this society",
+            "DUPLICATE_UNIT",
+            409,
+        )
+
     unit = Unit(
         society_id=data["society_id"],
         block_name=data.get("block_name"),

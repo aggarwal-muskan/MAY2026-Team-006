@@ -7,11 +7,15 @@ from app.api.utils import current_user
 from app.core.extensions import db
 from app.core.responses import fail, ok
 from app.core.security import ROLE_ADMIN, ROLE_OWNER, ROLE_SECURITY, ROLE_TENANT, roles_required
-from app.models import Complaint, ComplaintUpdate
+from app.models import Complaint, ComplaintUpdate, User
 from app.services.query_service import paginate_query
 
 
 complaints_bp = Blueprint("complaints", __name__, url_prefix="/complaints")
+
+# Closed vocabularies for the complaint domain (D-04 and D-05 fixes).
+ALLOWED_PRIORITIES = {"low", "medium", "high", "urgent"}
+ALLOWED_STATUSES = {"open", "in_progress", "resolved", "closed", "rejected"}
 
 
 @complaints_bp.get("")
@@ -66,13 +70,22 @@ def create_complaint():
     if missing:
         return fail(f"Missing required fields: {', '.join(missing)}", "VALIDATION_ERROR", 400)
 
+    # D-04 fix: priority is a closed vocabulary, not free text.
+    priority = str(data["priority"]).strip().lower()
+    if priority not in ALLOWED_PRIORITIES:
+        return fail(
+            f"Invalid priority '{data['priority']}'. Allowed values: {', '.join(sorted(ALLOWED_PRIORITIES))}",
+            "VALIDATION_ERROR",
+            400,
+        )
+
     complaint = Complaint(
         society_id=user.society_id,
         raised_by_user_id=user.id,
         subject=data["subject"],
         description=data["description"],
         category=data["category"],
-        priority=data["priority"],
+        priority=priority,
         status="open",
     )
     db.session.add(complaint)
@@ -122,7 +135,13 @@ def assign_complaint(complaint_id):
     if not data.get("assigned_to_user_id"):
         return fail("assigned_to_user_id is required", "VALIDATION_ERROR", 400)
 
-    complaint.assigned_to_user_id = data["assigned_to_user_id"]
+    # D-06 fix: an unknown id used to be stored, leaving the complaint assigned
+    # to nobody while reporting status "in_progress".
+    assignee = db.session.get(User, data["assigned_to_user_id"])
+    if not assignee:
+        return fail("Assignee user not found", "NOT_FOUND", 404)
+
+    complaint.assigned_to_user_id = assignee.id
     complaint.status = "in_progress"
     update = ComplaintUpdate(
         complaint_id=complaint.id,
@@ -153,6 +172,16 @@ def update_complaint_status(complaint_id):
 
     if not status or not comment:
         return fail("status and comment are required", "VALIDATION_ERROR", 400)
+
+    # D-05 fix: an arbitrary string used to be written straight into the status
+    # column, which broke every status filter and dashboard count downstream.
+    status = str(status).strip().lower()
+    if status not in ALLOWED_STATUSES:
+        return fail(
+            f"Invalid status '{data.get('status')}'. Allowed values: {', '.join(sorted(ALLOWED_STATUSES))}",
+            "VALIDATION_ERROR",
+            400,
+        )
 
     complaint.status = status
     update = ComplaintUpdate(
