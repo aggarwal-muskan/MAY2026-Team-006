@@ -46,8 +46,9 @@ export const useAuthStore = defineStore('auth', () => {
     return {
       ...rawUser,
       name: rawUser.name || rawUser.full_name || '',
-      flat: rawUser.flat || rawUser.unit_number || '',
+      flat: rawUser.flat || rawUser.flat_number || rawUser.unit_number || '',
       category: rawUser.category || rawUser.service_category || '',
+      profile_image_url: rawUser.profile_image_url || rawUser.avatar_url || '',
     }
   }
 
@@ -214,6 +215,36 @@ export const useAuthStore = defineStore('auth', () => {
       method: 'PUT',
       body: JSON.stringify(updatePayload || {}),
     })
+    user.value = normalizeBackendUser(payload.data)
+    persistSession()
+    return user.value
+  }
+
+  async function uploadProfileImage(imageFile) {
+    if (!token.value) {
+      throw new Error('Please login first.')
+    }
+    if (!imageFile) {
+      throw new Error('Please select an image file.')
+    }
+
+    const formData = new FormData()
+    formData.append('image', imageFile)
+
+    let payload
+    try {
+      const response = await fetch(`${apiBase}/users/me/profile-image`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token.value}`,
+        },
+        body: formData,
+      })
+      payload = await parseApiResponse(response)
+    } catch (error) {
+      throw normalizeRequestError(error)
+    }
+
     user.value = normalizeBackendUser(payload.data)
     persistSession()
     return user.value
@@ -522,6 +553,193 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
+  async function listVisitors(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/visitors${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function getVisitorsToday() {
+    const payload = await authFetch('/visitors/today', { method: 'GET' })
+    return payload?.data || {}
+  }
+
+  async function createVisitor(visitorPayload) {
+    const payload = await authFetch('/visitors', {
+      method: 'POST',
+      body: JSON.stringify(visitorPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function approveVisitor(entryId) {
+    const payload = await authFetch(`/visitors/${entryId}/approve`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function rejectVisitor(entryId) {
+    const payload = await authFetch(`/visitors/${entryId}/reject`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function recordVisitorExit(entryId) {
+    const payload = await authFetch(`/visitors/${entryId}/exit`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function listPatrolLogs(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/patrol-logs${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createPatrolLog(logPayload) {
+    const payload = await authFetch('/patrol-logs', {
+      method: 'POST',
+      body: JSON.stringify(logPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listEmergencyAlerts(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/emergency-alerts${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createEmergencyAlert(alertPayload) {
+    const payload = await authFetch('/emergency-alerts', {
+      method: 'POST',
+      body: JSON.stringify(alertPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listIncidentReports(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/incident-reports${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createIncidentReport(reportPayload) {
+    const payload = await authFetch('/incident-reports', {
+      method: 'POST',
+      body: JSON.stringify(reportPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listFamilyMembers(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/family-members${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createFamilyMember(memberPayload) {
+    const payload = await authFetch('/family-members', {
+      method: 'POST',
+      body: JSON.stringify(memberPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listMaintenanceBills(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/maintenance-bills${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function payMaintenanceBill(billId) {
+    const payload = await authFetch(`/maintenance-bills/${billId}/pay`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function listSystemLogs(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/system-logs${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function listTenants(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/tenants${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createTenant(tenantPayload) {
+    const payload = await authFetch('/tenants', {
+      method: 'POST',
+      body: JSON.stringify(tenantPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function updateTenant(tenantId, tenantPayload) {
+    const payload = await authFetch(`/tenants/${tenantId}`, {
+      method: 'PUT',
+      body: JSON.stringify(tenantPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function getSettings() {
+    const payload = await authFetch('/settings', { method: 'GET' })
+    return payload?.data || {}
+  }
+
+  async function updateSettings(settingsPayload) {
+    const payload = await authFetch('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settingsPayload || {}),
+    })
+    return payload?.data || {}
+  }
+
+  async function getSecurityDashboardStats() {
+    const payload = await authFetch('/analytics/dashboard/security', { method: 'GET' })
+    return payload?.data || {}
+  }
+
   async function getAdminDashboardStats() {
     const payload = await authFetch('/analytics/dashboard/admin', { method: 'GET' })
     return payload?.data?.stats || {}
@@ -674,6 +892,7 @@ export const useAuthStore = defineStore('auth', () => {
     forgotPassword,
     fetchMe,
     updateMe,
+    uploadProfileImage,
     listEvents,
     listNotices,
     createNotice,
@@ -705,6 +924,29 @@ export const useAuthStore = defineStore('auth', () => {
     listUsers,
     createUser,
     createProvider,
+    listVisitors,
+    getVisitorsToday,
+    createVisitor,
+    approveVisitor,
+    rejectVisitor,
+    recordVisitorExit,
+    listPatrolLogs,
+    createPatrolLog,
+    listEmergencyAlerts,
+    createEmergencyAlert,
+    listIncidentReports,
+    createIncidentReport,
+    listFamilyMembers,
+    createFamilyMember,
+    listMaintenanceBills,
+    payMaintenanceBill,
+    listSystemLogs,
+    listTenants,
+    createTenant,
+    updateTenant,
+    getSettings,
+    updateSettings,
+    getSecurityDashboardStats,
     getAdminDashboardStats,
     getProviderDashboardStats,
     getProviderEarnings,

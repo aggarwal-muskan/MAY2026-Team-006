@@ -41,20 +41,32 @@
       <form v-if="showResidentForm" class="card form-card" @submit.prevent="submitResident">
         <div class="form-grid two-col"><label class="form-group"><span class="form-label">Full Name</span><input v-model="residentForm.full_name" type="text" /></label><label class="form-group"><span class="form-label">Email</span><input v-model="residentForm.email" type="email" /></label></div>
         <div class="form-grid two-col"><label class="form-group"><span class="form-label">Phone</span><input v-model="residentForm.phone" type="text" /></label><label class="form-group"><span class="form-label">Password</span><input v-model="residentForm.password" type="password" /></label></div>
+        <div class="form-grid two-col"><label class="form-group"><span class="form-label">Flat Number</span><input v-model="residentForm.flat_number" type="text" placeholder="A-101" /></label></div>
         <button class="btn btn-primary">Create Resident</button>
       </form>
       <div class="card toolbar"><input v-model="userSearchQuery" type="text" placeholder="Search users (name, email, phone, role)" /></div>
       <div class="card table-wrap">
         <table class="data-table">
           <thead><tr><th>Name</th><th>Flat No</th><th>Phone</th><th>Email</th><th>Status</th></tr></thead>
-          <tbody><tr v-for="resident in residentRows" :key="resident.id"><td>{{ resident.name }}</td><td>{{ resident.flat }}</td><td>{{ resident.phone }}</td><td>{{ resident.email }}</td><td><span class="badge" :class="badgeClass(resident.status)">{{ resident.status }}</span></td></tr></tbody>
+          <tbody><tr v-for="resident in residentRows" :key="resident.id"><td>{{ resident.name }}</td><td>{{ resident.flat }}</td><td>{{ resident.phone }}</td><td>{{ resident.email }}</td><td><span class="badge" :class="badgeClass(resident.status)">{{ resident.status }}</span></td></tr><tr v-if="!residentRows.length"><td colspan="5">No residents match your search.</td></tr></tbody>
         </table>
       </div>
     </template>
 
     <template v-else-if="page === 'tenants'">
-      <div class="screen-header"><h1>Tenants</h1><p>Track tenant leases and contact details.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Flat No</th><th>Owner</th><th>Lease Start</th><th>Lease End</th><th>Status</th></tr></thead><tbody><tr v-for="tenant in tenants" :key="tenant.id"><td>{{ tenant.name }}</td><td>{{ tenant.flat }}</td><td>{{ tenant.owner }}</td><td>{{ tenant.leaseStart }}</td><td>{{ tenant.leaseEnd }}</td><td><span class="badge" :class="badgeClass(tenant.status)">{{ tenant.status }}</span></td></tr></tbody></table></div>
+      <div class="screen-header row-between">
+        <div><h1>Tenants</h1><p>Track tenant leases and contact details.</p></div>
+        <button class="btn btn-primary" @click="openTenantForm()">{{ showTenantForm ? 'Cancel' : 'Add Tenant' }}</button>
+      </div>
+      <form v-if="showTenantForm" class="card form-card" @submit.prevent="submitTenant">
+        <div class="form-grid two-col"><label class="form-group"><span class="form-label">Full Name</span><input v-model="tenantForm.full_name" type="text" /></label><label class="form-group"><span class="form-label">Email</span><input v-model="tenantForm.email" type="email" /></label></div>
+        <div class="form-grid two-col"><label class="form-group"><span class="form-label">Phone</span><input v-model="tenantForm.phone" type="text" /></label><label class="form-group"><span class="form-label">Flat Number</span><input v-model="tenantForm.flat_number" type="text" placeholder="B-204" /></label></div>
+        <div class="form-grid two-col"><label class="form-group"><span class="form-label">Lease Start</span><input v-model="tenantForm.leaseStart" type="date" /></label><label class="form-group"><span class="form-label">Lease End</span><input v-model="tenantForm.leaseEnd" type="date" /></label></div>
+        <div class="form-grid two-col"><label class="form-group"><span class="form-label">Status</span><select v-model="tenantForm.status"><option value="active">Active</option><option value="inactive">Inactive</option></select></label><label class="form-group"><span class="form-label">Password {{ editingTenantId ? '(leave blank to keep unchanged)' : '' }}</span><input v-model="tenantForm.password" type="password" /></label></div>
+        <button class="btn btn-primary">{{ editingTenantId ? 'Update Tenant' : 'Create Tenant' }}</button>
+      </form>
+      <div class="card toolbar"><input v-model="tenantSearchQuery" type="text" placeholder="Search tenant by name, email, phone, flat, owner, status" /></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Flat No</th><th>Owner</th><th>Lease Start</th><th>Lease End</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr v-for="tenant in tenantRows" :key="tenant.id"><td>{{ tenant.name }}</td><td>{{ tenant.email || '-' }}</td><td>{{ tenant.phone || '-' }}</td><td>{{ tenant.flat }}</td><td>{{ tenant.owner }}</td><td>{{ tenant.leaseStart || '-' }}</td><td>{{ tenant.leaseEnd || '-' }}</td><td><span class="badge" :class="badgeClass(tenant.status)">{{ tenant.status }}</span></td><td><button class="btn btn-outline btn-sm" @click="openTenantForm(tenant)">Edit</button></td></tr><tr v-if="!tenantRows.length"><td colspan="9">No tenants found</td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'providers'">
@@ -69,7 +81,7 @@
       <div class="card table-wrap"><table class="data-table"><thead><tr><th>Name</th><th>Service</th><th>Phone</th><th>Rating</th></tr></thead><tbody><tr v-for="provider in providerRows" :key="provider.id"><td>{{ provider.business_name || provider.name }}</td><td>{{ provider.category || provider.category_id }}</td><td>{{ provider.phone || '-' }}</td><td>{{ provider.rating_avg || provider.rating || 0 }}</td></tr></tbody></table></div>
     </template>
 
-        <template v-else-if="page === 'complaints'">
+      <template v-else-if="page === 'complaints'">
       <div class="screen-header row-between">
         <div>
           <h1>Complaints Management</h1>
@@ -140,22 +152,22 @@
                 </span>
               </td>
               <td><span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span></td>
-                    <template v-if="canAssignComplaint(complaint)">
-                      <select v-model="complaintAssignments[complaint.id]">
-                        <option disabled value="">Select user</option>
-                        <option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option>
-                      </select>
-                      <button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">{{ complaint.assigned_to_user_id ? 'Reassign' : 'Assign' }}</button>
-                    </template>
-                    <span v-else class="chip">Closed</span>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">Assign</button>
+              <td>
+                <div class="row-actions" style="display: flex; gap: var(--space-2); align-items: center;">
+                  <template v-if="canAssignComplaint(complaint)">
+                    <select v-model="complaintAssignments[complaint.id]">
+                      <option disabled value="">Select provider</option>
+                      <option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">{{ complaint.assigned_to_user_id ? 'Reassign' : 'Assign' }}</button>
+                  </template>
+                  <span v-else class="chip">Closed</span>
                 </div>
               </td>
             </tr>
           </tbody>
+        </table>
       </div>
->>>>>>> origin/main
     </template>
 
     <template v-else-if="page === 'notices'">
@@ -262,7 +274,7 @@
 
     <template v-else-if="page === 'settings'">
       <div class="screen-header"><h1>Admin Settings</h1><p>Basic administrative preferences.</p></div>
-      <form class="card form-card"><label class="switch-row"><span>Maintenance reminders</span><input type="checkbox" checked /></label><label class="switch-row"><span>Email alerts</span><input type="checkbox" checked /></label><label class="switch-row"><span>Auto approvals</span><input type="checkbox" /></label></form>
+      <form class="card form-card" @submit.prevent="saveSettings"><label class="switch-row"><span>Maintenance reminders</span><input v-model="settingsForm.maintenance_reminders" type="checkbox" /></label><label class="switch-row"><span>Email alerts</span><input v-model="settingsForm.email_alerts" type="checkbox" /></label><label class="switch-row"><span>Auto approvals</span><input v-model="settingsForm.auto_approvals" type="checkbox" /></label><button class="btn btn-primary">Save Settings</button></form>
     </template>
 
     <template v-else-if="page === 'roles'">
@@ -272,7 +284,7 @@
 
     <template v-else-if="page === 'maintenance-fees'">
       <div class="screen-header"><h1>Maintenance Fees</h1><p>Fee overview and recent payments.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Month</th><th>Amount</th><th>Status</th></tr></thead><tbody><tr v-for="bill in maintenanceBills" :key="bill.id"><td>{{ bill.month }}</td><td>{{ currency(bill.amount) }}</td><td><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span></td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Month</th><th>Amount</th><th>Status</th></tr></thead><tbody><tr v-for="bill in maintenanceFeeRows" :key="bill.id"><td>{{ bill.month }}</td><td>{{ currency(bill.amount) }}</td><td><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span></td></tr><tr v-if="!maintenanceFeeRows.length"><td colspan="3">No maintenance bills found</td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'reports'">
@@ -283,7 +295,7 @@
 
     <template v-else-if="page === 'logs'">
       <div class="screen-header"><h1>System Logs</h1><p>Audit trail of key admin actions.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Action</th><th>User</th><th>Timestamp</th><th>Details</th></tr></thead><tbody><tr v-for="log in systemLogs" :key="log.id"><td>{{ log.action }}</td><td>{{ log.user }}</td><td>{{ log.timestamp }}</td><td>{{ log.details }}</td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Action</th><th>User</th><th>Timestamp</th><th>Details</th></tr></thead><tbody><tr v-for="log in systemLogRows" :key="log.id"><td>{{ log.action }}</td><td>{{ log.user }}</td><td>{{ log.timestamp }}</td><td>{{ log.details }}</td></tr><tr v-if="!systemLogRows.length"><td colspan="4">No system logs available</td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'ai-tools'">
@@ -318,11 +330,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import {
-  maintenanceBills,
-  systemLogs,
-  tenants,
-} from '@/data/mockData'
 import { badgeClass, currency } from './screenUtils'
 
 const route = useRoute()
@@ -335,6 +342,9 @@ const backendProviders = ref([])
 const backendComplaints = ref([])
 const backendNotices = ref([])
 const backendEvents = ref([])
+const backendTenants = ref([])
+const backendSystemLogs = ref([])
+const backendMaintenanceBills = ref([])
 const adminDashboardStats = ref({})
 const complaintAssignments = ref({})
 const bookingStatusBreakdown = ref({})
@@ -343,8 +353,11 @@ const serviceCategories = ref([])
 const monthlyReport = ref({})
 const showResidentForm = ref(false)
 const showProviderForm = ref(false)
+const showTenantForm = ref(false)
+const editingTenantId = ref(null)
 const isExporting = ref(false)
 const userSearchQuery = ref('')
+const tenantSearchQuery = ref('')
 
 const activeSearchQuery = computed(() => {
   const local = String(userSearchQuery.value || '').trim()
@@ -357,8 +370,9 @@ const selectedSortOrder = ref('priority-desc')
 
 const noticeForm = reactive({ title: '', body: '', notice_type: 'maintenance', priority: 'normal' })
 const eventForm = reactive({ title: '', description: '', event_date: '', start_time: '', venue: '' })
-const residentForm = reactive({ full_name: '', email: '', phone: '', password: '' })
+const residentForm = reactive({ full_name: '', email: '', phone: '', password: '', flat_number: '' })
 const providerForm = reactive({ full_name: '', email: '', phone: '', password: '', category_id: '', business_name: '', service_description: '' })
+const tenantForm = reactive({ full_name: '', email: '', phone: '', password: '', flat_number: '', leaseStart: '', leaseEnd: '', status: 'active' })
 const aiBusyKey = ref(null)
 const analyticsInsight = ref(null)
 const noticeTranslations = ref(null)
@@ -370,6 +384,7 @@ const aiNoticeDraft = reactive({ topic: '', date: '', time: '', extra: '' })
 const eventPlanDraft = reactive({ expected_residents: 200, budget: '₹50,000', duration: '4 hours' })
 const meetingForm = reactive({ title: 'Society Committee Meeting', date: '', notes: '' })
 const maintenanceForm = reactive({ equipment: '', notes: '', query: '' })
+const settingsForm = reactive({ maintenance_reminders: true, email_alerts: true, auto_approvals: false })
 
 function isAiBusy(key) {
   return aiBusyKey.value === key
@@ -434,6 +449,30 @@ const providerRows = computed(() => {
   return backendProviders.value.filter((item) => matchesSearch(item, query))
 })
 
+const tenantRows = computed(() => {
+  const query = String(tenantSearchQuery.value || '').trim().toLowerCase()
+  if (!query) return backendTenants.value
+  return backendTenants.value.filter((item) => {
+    const values = [item.name, item.email, item.phone, item.flat, item.owner, item.status].map((value) => String(value || '').toLowerCase())
+    return values.some((value) => value.includes(query))
+  })
+})
+
+const maintenanceFeeRows = computed(() => backendMaintenanceBills.value.map((bill) => ({
+  id: bill.id,
+  month: bill.month_label,
+  amount: Number(bill.amount || 0),
+  status: String(bill.status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid',
+})))
+
+const systemLogRows = computed(() => backendSystemLogs.value.map((log) => ({
+  id: log.id,
+  action: log.action,
+  user: log.user_id ? `User #${log.user_id}` : 'System',
+  timestamp: log.created_at,
+  details: log.details,
+})))
+
 const complaintRows = computed(() => {
   const query = String(activeSearchQuery.value || '').trim().toLowerCase()
   if (!query) return backendComplaints.value
@@ -453,7 +492,7 @@ const eventRows = computed(() => {
 })
 
 const assignableUsers = computed(() => {
-  const roles = new Set(['admin', 'security', 'service_provider'])
+  const roles = new Set(['service_provider'])
   return filteredUsers.value
     .filter((user) => roles.has(String(user.role || '').toLowerCase()))
     .map((user) => ({ id: user.id, name: user.full_name || user.name || `User #${user.id}` }))
@@ -533,6 +572,8 @@ async function loadAdminData() {
     if (authStore.token) {
       const searchTerm = String(activeSearchQuery.value || '').trim()
       const searchQueryString = searchTerm ? new URLSearchParams({ search: searchTerm }).toString() : ''
+      const tenantSearchTerm = String(tenantSearchQuery.value || '').trim()
+      const tenantSearchQueryString = tenantSearchTerm ? new URLSearchParams({ search: tenantSearchTerm }).toString() : ''
 
       const [
         usersResult,
@@ -545,8 +586,12 @@ async function loadAdminData() {
         complaintsAnalyticsResult,
         categoriesResult,
         monthlyReportResult,
+        tenantsResult,
+        logsResult,
+        settingsResult,
+        billsResult,
       ] = await Promise.allSettled([
-        loadAllUsers(searchTerm),
+        loadAllUsers(''),
         authStore.listProviders(searchQueryString),
         authStore.listComplaints(searchQueryString),
         authStore.listNotices(searchQueryString),
@@ -556,6 +601,10 @@ async function loadAdminData() {
         authStore.getComplaintsAnalytics(),
         authStore.listServiceCategories(),
         authStore.getMonthlyReport(),
+        authStore.listTenants(tenantSearchQueryString),
+        authStore.listSystemLogs(),
+        authStore.getSettings(),
+        authStore.listMaintenanceBills(),
       ])
 
       if (usersResult.status === 'fulfilled') backendUsers.value = usersResult.value
@@ -571,9 +620,26 @@ async function loadAdminData() {
       if (complaintsAnalyticsResult.status === 'fulfilled') complaintStatusBreakdown.value = complaintsAnalyticsResult.value
       if (categoriesResult.status === 'fulfilled') serviceCategories.value = categoriesResult.value
       if (monthlyReportResult.status === 'fulfilled') monthlyReport.value = monthlyReportResult.value
+      if (tenantsResult.status === 'fulfilled') backendTenants.value = tenantsResult.value
+      if (logsResult.status === 'fulfilled') backendSystemLogs.value = logsResult.value
+      if (billsResult.status === 'fulfilled') backendMaintenanceBills.value = billsResult.value
+      if (settingsResult.status === 'fulfilled') {
+        settingsForm.maintenance_reminders = String(settingsResult.value.maintenance_reminders || 'true') === 'true'
+        settingsForm.email_alerts = String(settingsResult.value.email_alerts || 'true') === 'true'
+        settingsForm.auto_approvals = String(settingsResult.value.auto_approvals || 'false') === 'true'
+      }
     }
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to load admin data')
+  }
+}
+
+async function saveSettings() {
+  try {
+    await authStore.updateSettings(settingsForm)
+    notify.success('Settings saved successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to save settings')
   }
 }
 
@@ -586,17 +652,81 @@ async function submitResident() {
       email: String(residentForm.email || '').trim(),
       phone: String(residentForm.phone || '').trim(),
       password: String(residentForm.password || ''),
+      flat_number: String(residentForm.flat_number || '').trim(),
       status: 'active',
     })
     residentForm.full_name = ''
     residentForm.email = ''
     residentForm.phone = ''
     residentForm.password = ''
+    residentForm.flat_number = ''
     showResidentForm.value = false
     await loadAdminData()
     notify.success('Resident added successfully')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to add resident')
+  }
+}
+
+function resetTenantForm() {
+  tenantForm.full_name = ''
+  tenantForm.email = ''
+  tenantForm.phone = ''
+  tenantForm.password = ''
+  tenantForm.flat_number = ''
+  tenantForm.leaseStart = ''
+  tenantForm.leaseEnd = ''
+  tenantForm.status = 'active'
+}
+
+function openTenantForm(tenant = null) {
+  if (!tenant) {
+    editingTenantId.value = null
+    showTenantForm.value = !showTenantForm.value
+    if (showTenantForm.value) resetTenantForm()
+    return
+  }
+
+  editingTenantId.value = tenant.id
+  showTenantForm.value = true
+  tenantForm.full_name = tenant.name || ''
+  tenantForm.email = tenant.email || ''
+  tenantForm.phone = tenant.phone || ''
+  tenantForm.password = ''
+  tenantForm.flat_number = tenant.flat || ''
+  tenantForm.leaseStart = tenant.leaseStart || ''
+  tenantForm.leaseEnd = tenant.leaseEnd || ''
+  tenantForm.status = tenant.status || 'active'
+}
+
+async function submitTenant() {
+  try {
+    const payload = {
+      full_name: String(tenantForm.full_name || '').trim(),
+      email: String(tenantForm.email || '').trim(),
+      phone: String(tenantForm.phone || '').trim(),
+      flat_number: String(tenantForm.flat_number || '').trim(),
+      leaseStart: tenantForm.leaseStart || null,
+      leaseEnd: tenantForm.leaseEnd || null,
+      status: String(tenantForm.status || 'active').trim().toLowerCase(),
+    }
+
+    if (editingTenantId.value) {
+      if (tenantForm.password) payload.password = String(tenantForm.password)
+      await authStore.updateTenant(editingTenantId.value, payload)
+      notify.success('Tenant updated successfully')
+    } else {
+      payload.password = String(tenantForm.password || '')
+      await authStore.createTenant(payload)
+      notify.success('Tenant created successfully')
+    }
+
+    showTenantForm.value = false
+    editingTenantId.value = null
+    resetTenantForm()
+    await loadAdminData()
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to save tenant')
   }
 }
 
@@ -974,6 +1104,12 @@ watch(
     loadAdminData()
   }
 )
+
+watch(tenantSearchQuery, () => {
+  if (page.value === 'tenants') {
+    loadAdminData()
+  }
+})
 </script>
 
 <style scoped>

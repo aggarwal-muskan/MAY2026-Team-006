@@ -88,13 +88,14 @@
         >
           {{ noticeLanguageLabels[lang] }}
         </button>
+        <button v-for="chip in noticeFilters" :key="chip" type="button" class="chip" :class="{ 'chip-active': selectedNoticeFilter === chip }" @click="selectedNoticeFilter = chip">{{ chip }}</button>
       </div>
       <div v-if="allNoticesSummary" class="card ai-summary-card">
         <h3 class="card-title">{{ allNoticesSummary.headline || 'Notices summary' }}</h3>
         <pre class="ai-output">{{ formatAllNoticesSummary(allNoticesSummary) }}</pre>
       </div>
       <div class="stack">
-        <article v-for="notice in residentNotices" :key="`notice-${notice.id}`" class="card notice-card">
+        <article v-for="notice in residentNotices" :key="`notice-${notice.id}`" class="card notice-card notice-clickable" @click="selectedNotice = notice">
           <div class="card-header no-border">
             <strong>{{ notice.title }}</strong>
             <span class="badge" :class="badgeClass(notice.priority)">{{ notice.priority }}</span>
@@ -105,7 +106,18 @@
           </small>
           <small>{{ notice.date || notice.publish_at || '-' }} · {{ notice.category || notice.notice_type || 'Notice' }}</small>
         </article>
+        <article v-if="!residentNotices.length" class="card notice-card">No notices match the selected filters.</article>
       </div>
+      <section v-if="selectedNotice" class="card ai-panel">
+        <div class="screen-header row-between">
+          <div>
+            <h3 class="card-title">{{ selectedNotice.title }}</h3>
+            <p>{{ selectedNotice.category || selectedNotice.notice_type || 'Notice' }}</p>
+          </div>
+          <button class="btn btn-outline btn-sm" type="button" @click="selectedNotice = null">Close</button>
+        </div>
+        <p>{{ noticeBodyText(selectedNotice) }}</p>
+      </section>
     </template>
 
     <template v-else-if="page === 'events'">
@@ -132,6 +144,7 @@
         </div>
         <router-link to="/resident/complaints/new" class="btn btn-primary">New Complaint</router-link>
       </div>
+      <div class="chip-row"><button v-for="status in complaintFilters" :key="status" type="button" class="chip" :class="{ 'chip-active': selectedComplaintFilter === status }" @click="selectedComplaintFilter = status">{{ status }}</button></div>
       <div class="table-wrap card">
         <table class="data-table">
           <thead><tr><th>#</th><th>Title</th><th>Category</th><th>Status</th><th>Date</th></tr></thead>
@@ -161,29 +174,40 @@
         <label class="form-group"><span class="form-label">Title</span><input v-model="complaintForm.title" type="text" placeholder="Short issue title" /></label>
         <label class="form-group"><span class="form-label">Description</span><textarea v-model="complaintForm.description" rows="5" placeholder="Describe the issue in detail"></textarea></label>
         <p class="ai-hint">ℹ️ Complaint priority and category will be objectively assessed & classified by Admin AI upon review.</p>
-        <label class="form-group"><span class="form-label">Upload Image</span><input type="file" /></label>
         <button class="btn btn-primary">Submit Complaint</button>
       </form>
     </template>
 
     <template v-else-if="page === 'complaint-details'">
       <div class="screen-header">
-        <h1>Complaint ID: C-034</h1>
+        <h1>Complaint Details</h1>
         <p>Complaint details, assignment progress, and updates.</p>
       </div>
-      <div class="content-grid two-col">
+      <div v-if="complaintDetailLoading" class="card">Loading complaint details...</div>
+      <div v-else-if="complaintDetailError" class="card">{{ complaintDetailError }}</div>
+      <div v-else-if="!complaintDetail" class="card">Complaint not found.</div>
+      <div v-else class="content-grid two-col">
         <section class="card">
+          <h3 class="card-title">{{ complaintDetail.subject || complaintDetail.title || `Complaint #${complaintDetail.id}` }}</h3>
           <div class="detail-list">
-            <div v-for="item in complaintDetails" :key="item.label" class="detail-row"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+            <div class="detail-row"><span>ID</span><strong>#{{ complaintDetail.id }}</strong></div>
+            <div class="detail-row"><span>Category</span><strong>{{ complaintDetail.category }}</strong></div>
+            <div class="detail-row"><span>Status</span><strong>{{ complaintDetail.status }}</strong></div>
+            <div class="detail-row"><span>Priority</span><strong>{{ complaintDetail.priority }}</strong></div>
+            <div class="detail-row"><span>Resident</span><strong>{{ complaintResidentText }}</strong></div>
+            <div class="detail-row"><span>Assigned To</span><strong>{{ complaintAssigneeText }}</strong></div>
+            <div class="detail-row"><span>Created</span><strong>{{ complaintDetail.created_at || '-' }}</strong></div>
+            <div class="detail-row"><span>Updated</span><strong>{{ complaintDetail.updated_at || '-' }}</strong></div>
           </div>
-          <p class="detail-copy">Water leakage in the bathroom tap from the past two days.</p>
+          <p class="detail-copy">{{ complaintDetail.description }}</p>
         </section>
         <section class="card">
           <h3 class="card-title">Timeline</h3>
-          <div v-for="step in timeline" :key="step.label" class="timeline-row">
-            <span class="timeline-dot" :class="step.done ? 'done' : ''"></span>
+          <div v-for="step in complaintTimeline" :key="`${step.label}-${step.value}`" class="timeline-row">
+            <span class="timeline-dot done"></span>
             <div><strong>{{ step.label }}</strong><p>{{ step.value }}</p></div>
           </div>
+          <div v-if="!complaintTimeline.length" class="timeline-row"><span class="timeline-dot"></span><div><strong>No updates yet</strong><p>Status changes will appear here.</p></div></div>
         </section>
       </div>
     </template>
@@ -255,7 +279,7 @@
         <h1>My Bookings</h1>
         <p>Review upcoming, completed, and cancelled bookings.</p>
       </div>
-      <div class="chip-row"><span v-for="tab in ['Upcoming', 'Completed', 'Cancelled']" :key="tab" class="chip">{{ tab }}</span></div>
+      <div class="chip-row"><button v-for="tab in bookingTabs" :key="tab" type="button" class="chip" :class="{ 'chip-active': activeBookingTab === tab }" @click="activeBookingTab = tab">{{ tab }}</button></div>
       <div class="stack">
         <article v-for="booking in residentBookings" :key="booking.id" class="card booking-card">
           <div><strong>{{ bookingFacility(booking) }}</strong><p>{{ bookingDate(booking) }}</p></div>
@@ -267,13 +291,15 @@
     <template v-else-if="page === 'family'">
       <div class="screen-header row-between">
         <div><h1>My Family</h1><p>Keep family members and emergency contacts updated.</p></div>
-        <button class="btn btn-primary">Add Member</button>
+        <button class="btn btn-primary" @click="showFamilyForm = !showFamilyForm">{{ showFamilyForm ? 'Cancel' : 'Add Member' }}</button>
       </div>
+      <form v-if="showFamilyForm" class="card form-card" @submit.prevent="submitFamilyMember"><div class="form-grid two-col"><label class="form-group"><span class="form-label">Full Name</span><input v-model="familyForm.full_name" type="text" /></label><label class="form-group"><span class="form-label">Relation</span><input v-model="familyForm.relation" type="text" /></label></div><div class="form-grid two-col"><label class="form-group"><span class="form-label">Phone</span><input v-model="familyForm.phone" type="text" /></label><label class="form-group"><span class="form-label">Age</span><input v-model="familyForm.age" type="number" min="0" /></label></div><button class="btn btn-primary">Save Member</button></form>
       <div class="stack">
-        <article v-for="member in familyMembers" :key="member.id" class="card member-card">
+        <article v-for="member in residentFamilyMembers" :key="member.id" class="card member-card">
           <div class="avatar">{{ member.name.split(' ').map(part => part[0]).join('') }}</div>
           <div><strong>{{ member.name }}</strong><p>{{ member.relation }}</p></div>
         </article>
+        <article v-if="!residentFamilyMembers.length" class="card member-card">No family members added yet.</article>
       </div>
     </template>
 
@@ -294,7 +320,8 @@
     <template v-else-if="page === 'profile'">
       <div class="content-grid two-col">
         <section class="card profile-card">
-          <div class="avatar avatar-xl">{{ currentUserInitials }}</div>
+          <img v-if="currentProfileImageUrl" :src="currentProfileImageUrl" alt="Profile image" class="profile-image" />
+          <div v-else class="avatar avatar-xl">{{ currentUserInitials }}</div>
           <h1>{{ currentUserDisplayName }}</h1>
           <p>{{ authStore.user?.flat || 'Resident' }} · Green Valley Society</p>
           <button class="btn btn-outline" @click="isEditingProfile = !isEditingProfile">
@@ -320,7 +347,15 @@
               <span class="form-label">Email (read-only)</span>
               <input v-model="profileForm.email" type="text" disabled />
             </label>
-            <button class="btn btn-primary">Save Profile</button>
+            <label class="form-group">
+              <span class="form-label">Profile Image</span>
+              <input type="file" accept=".jpg,.jpeg,.png,.webp" @change="onProfileImageSelected" />
+              <small class="muted">Allowed: jpg, jpeg, png, webp. Max size 5MB.</small>
+            </label>
+            <div v-if="profileImagePreviewUrl" class="profile-preview-wrap">
+              <img :src="profileImagePreviewUrl" alt="Selected profile preview" class="profile-preview" />
+            </div>
+            <button class="btn btn-primary" :disabled="profileSaveBusy">{{ profileSaveBusy ? 'Saving...' : 'Save Profile' }}</button>
           </form>
         </section>
       </div>
@@ -392,7 +427,7 @@
         <p>Track monthly charges and payment status.</p>
       </div>
       <div class="stack">
-        <article v-for="bill in maintenanceBills" :key="`bill-${bill.id}`" class="card bill-card">
+        <article v-for="bill in residentMaintenanceBills" :key="`bill-${bill.id}`" class="card bill-card">
           <div>
             <strong>{{ bill.month }}</strong>
             <p>Due {{ bill.dueDate }}</p>
@@ -400,8 +435,9 @@
               <li v-for="item in bill.line_items" :key="item.label">{{ item.label }}: {{ currency(item.amount) }}</li>
             </ul>
           </div>
-          <div class="bill-meta"><strong>{{ currency(bill.amount) }}</strong><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span></div>
+          <div class="bill-meta"><strong>{{ currency(bill.amount) }}</strong><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span><button v-if="String(bill.status).toLowerCase() !== 'paid'" class="btn btn-primary btn-sm" @click="payBill(bill.id)">Pay Now</button></div>
         </article>
+        <article v-if="!residentMaintenanceBills.length" class="card bill-card">No maintenance bills available.</article>
       </div>
     </template>
 
@@ -422,24 +458,14 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import {
-  bookings,
-  complaints as mockComplaints,
-  events as mockEvents,
-  familyMembers,
-  faqs,
-  maintenanceBills,
-  notices as mockNotices,
-  notifications,
-  serviceCategories as mockServiceCategories,
-  serviceProviders,
-} from '@/data/mockData'
+import { bookings, complaints as mockComplaints, events as mockEvents, faqs, notices as mockNotices, notifications, serviceCategories as mockServiceCategories, serviceProviders } from '@/data/mockData'
 import { badgeClass, currency, days, stars } from './screenUtils'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const notify = useNotificationStore()
 const page = computed(() => route.meta.page || 'dashboard')
@@ -450,41 +476,39 @@ const backendComplaints = ref([])
 const backendProviders = ref([])
 const backendServiceCategories = ref([])
 const backendBookings = ref([])
+const backendFamilyMembers = ref([])
+const backendMaintenanceBills = ref([])
 const providerAmenityNameById = ref({})
 const joinedEventIds = ref(new Set())
 const isEditingProfile = ref(false)
 const profileForm = reactive({ full_name: '', phone: '', email: '' })
+const profileImageFile = ref(null)
+const profileImagePreviewUrl = ref('')
+const profileSaveBusy = ref(false)
 const amenityForm = reactive({ category_id: '', date: '', time_slot: '', purpose: '' })
+const complaintForm = reactive({ category: 'Plumbing', priority: 'Medium', title: '', description: '' })
+const familyForm = reactive({ full_name: '', relation: '', phone: '', age: '' })
+const aiBusyKey = ref(null)
+const allNoticesSummary = ref(null)
+const selectedNoticeLanguage = ref('English')
+const noticeLanguages = ['English', 'Hindi', 'Telugu']
+const noticeLanguageLabels = { English: 'English', Hindi: 'हिंदी', Telugu: 'తెలుగు' }
 const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
+const selectedNoticeFilter = ref('All')
+const noticeFilters = ['All', 'Maintenance', 'Event', 'Rules']
+const selectedComplaintFilter = ref('All')
+const complaintFilters = ['All', 'Pending', 'In Progress', 'Resolved']
+const activeBookingTab = ref('Upcoming')
+const bookingTabs = ['Upcoming', 'Completed', 'Cancelled']
+const complaintDetail = ref(null)
+const complaintDetailLoading = ref(false)
+const complaintDetailError = ref('')
+const showFamilyForm = ref(false)
+const selectedNotice = ref(null)
 
 function matchesSearch(values, query) {
   if (!query) return true
-  return values
-    .map((value) => String(value || '').toLowerCase())
-    .some((value) => value.includes(query))
-}
-const complaintForm = reactive({ category: 'Plumbing', priority: 'Medium', title: '', description: '' })
-const aiBusyKey = ref(null)
-const allNoticesSummary = ref(null)
-const complaintAiSuggestion = ref(null)
-const noticeLanguages = ['English', 'Hindi', 'Telugu']
-const noticeLanguageLabels = { English: 'English', Hindi: 'हिंदी', Telugu: 'తెలుగు' }
-const selectedNoticeLanguage = ref('English')
-const amenityForm = reactive({ category_id: '', date: '', time_slot: '', purpose: '' })
-const complaintForm = reactive({ category: 'Plumbing', priority: 'Medium', title: '', description: '' })
-const aiBusyKey = ref(null)
-const allNoticesSummary = ref(null)
-const complaintAiSuggestion = ref(null)
-const noticeLanguages = ['English', 'Hindi', 'Telugu']
-const noticeLanguageLabels = { English: 'English', Hindi: 'हिंदी', Telugu: 'తెలుగు' }
-const selectedNoticeLanguage = ref('English')
-const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
-
-function matchesSearch(values, query) {
-  if (!query) return true
-  return values
-    .map((value) => String(value || '').toLowerCase())
-    .some((value) => value.includes(query))
+  return values.map((value) => String(value || '').toLowerCase()).some((value) => value.includes(query))
 }
 
 function isAiBusy(key) {
@@ -499,109 +523,68 @@ async function withAi(key, task) {
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'AI request failed')
   } finally {
-    if (aiBusyKey.value === key) {
-      aiBusyKey.value = null
-    }
+    if (aiBusyKey.value === key) aiBusyKey.value = null
   }
 }
+
 const residentEvents = computed(() => {
   const list = authStore.token ? backendEvents.value : mockEvents
   const query = globalSearchQuery.value
   if (!query) return list
-  return list.filter((event) => matchesSearch([
-    event?.title,
-    event?.description,
-    event?.venue,
-    event?.category,
-    event?.event_date,
-    event?.date,
-  ], query))
+  return list.filter((event) => matchesSearch([event?.title, event?.description, event?.venue, event?.category, event?.event_date, event?.date], query))
 })
 
 const residentNotices = computed(() => {
-  if (authStore.token) {
-    const sorted = [...backendNotices.value].sort((a, b) => {
-      const aTime = new Date(a.publish_at || a.created_at || a.date || 0).getTime()
-      const bTime = new Date(b.publish_at || b.created_at || b.date || 0).getTime()
-      return bTime - aTime
-    })
-    const query = globalSearchQuery.value
-    if (!query) return sorted
-    return sorted.filter((notice) => matchesSearch([
-      notice?.title,
-      notice?.body,
-      notice?.content,
-      notice?.notice_type,
-      notice?.category,
-      notice?.priority,
-    ], query))
-  }
+  const base = authStore.token ? [...backendNotices.value] : [...mockNotices]
+  base.sort((a, b) => new Date(b.publish_at || b.created_at || b.date || 0).getTime() - new Date(a.publish_at || a.created_at || a.date || 0).getTime())
+  const filtered = base.filter((notice) => selectedNoticeFilter.value === 'All' || String(notice.category || notice.notice_type || '').toLowerCase() === selectedNoticeFilter.value.toLowerCase())
   const query = globalSearchQuery.value
-  if (!query) return mockNotices
-  return mockNotices.filter((notice) => matchesSearch([
-    notice?.title,
-    notice?.body,
-    notice?.content,
-    notice?.notice_type,
-    notice?.category,
-    notice?.priority,
-  ], query))
+  if (!query) return filtered
+  return filtered.filter((notice) => matchesSearch([notice?.title, notice?.body, notice?.content, notice?.notice_type, notice?.category, notice?.priority], query))
 })
 
 const residentComplaints = computed(() => {
-  if (authStore.token) {
-    const sorted = [...backendComplaints.value].sort((a, b) => {
-      const aTime = new Date(a.created_at || a.date || 0).getTime()
-      const bTime = new Date(b.created_at || b.date || 0).getTime()
-      if (aTime !== bTime) return bTime - aTime
-      return Number(b.id || 0) - Number(a.id || 0)
-    })
-    const query = globalSearchQuery.value
-    if (!query) return sorted
-    return sorted.filter((complaint) => matchesSearch([
-      complaint?.id,
-      complaint?.title,
-      complaint?.subject,
-      complaint?.description,
-      complaint?.category,
-      complaint?.status,
-    ], query))
-  }
+  const base = authStore.token ? [...backendComplaints.value] : [...mockComplaints]
+  base.sort((a, b) => {
+    const aTime = new Date(a.created_at || a.date || 0).getTime()
+    const bTime = new Date(b.created_at || b.date || 0).getTime()
+    if (aTime !== bTime) return bTime - aTime
+    return Number(b.id || 0) - Number(a.id || 0)
+  })
+  const filtered = base.filter((complaint) => {
+    if (selectedComplaintFilter.value === 'All') return true
+    const status = String(complaint.status || '').toLowerCase().replace(' ', '_')
+    if (selectedComplaintFilter.value === 'Pending') return ['open', 'assigned'].includes(status)
+    if (selectedComplaintFilter.value === 'In Progress') return status === 'in_progress'
+    if (selectedComplaintFilter.value === 'Resolved') return status === 'resolved'
+    return true
+  })
   const query = globalSearchQuery.value
-  if (!query) return mockComplaints
-  return mockComplaints.filter((complaint) => matchesSearch([
-    complaint?.id,
-    complaint?.title,
-    complaint?.subject,
-    complaint?.description,
-    complaint?.category,
-    complaint?.status,
-  ], query))
+  if (!query) return filtered
+  return filtered.filter((complaint) => matchesSearch([complaint?.id, complaint?.title, complaint?.subject, complaint?.description, complaint?.category, complaint?.status], query))
 })
 
 const residentBookings = computed(() => {
   const list = authStore.token ? backendBookings.value : bookings
+  const tabFiltered = list.filter((booking) => {
+    const status = String(booking.booking_status || booking.status || '').toLowerCase()
+    if (activeBookingTab.value === 'Completed') return status === 'completed'
+    if (activeBookingTab.value === 'Cancelled') return status === 'cancelled' || status === 'declined'
+    return status !== 'completed' && status !== 'cancelled' && status !== 'declined'
+  })
   const query = globalSearchQuery.value
-  if (!query) return list
-  return list.filter((booking) => matchesSearch([
-    booking?.request_notes,
-    booking?.status,
-    booking?.booking_status,
-    booking?.provider_name,
-    booking?.created_at,
-    booking?.date,
-    bookingFacility(booking),
-  ], query))
+  if (!query) return tabFiltered
+  return tabFiltered.filter((booking) => matchesSearch([booking?.request_notes, booking?.status, booking?.booking_status, booking?.provider_name, booking?.created_at, booking?.date, bookingFacility(booking)], query))
 })
+
+const residentFamilyMembers = computed(() => backendFamilyMembers.value.map((member) => ({ id: member.id, name: member.full_name, relation: member.relation, phone: member.phone, age: member.age })))
+const residentMaintenanceBills = computed(() => backendMaintenanceBills.value.map((bill) => ({ id: bill.id, month: bill.month_label, dueDate: bill.due_date, amount: Number(bill.amount || 0), status: String(bill.status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid', line_items: [] })))
 
 const browseServiceCards = computed(() => {
   const list = authStore.token ? backendServiceCategories.value : mockServiceCategories
   const query = globalSearchQuery.value
   if (!query) return list
-  return list.filter((category) => matchesSearch([
-    category?.name,
-    category?.description,
-  ], query))
+  return list.filter((category) => matchesSearch([category?.name, category?.description], query))
 })
 
 const selectedProvider = computed(() => {
@@ -619,19 +602,14 @@ const amenityProviders = computed(() => {
 const selectedAmenityProvider = computed(() => {
   const categoryId = Number(amenityForm.category_id)
   if (!categoryId) return null
-
   const category = browseServiceCards.value.find((item) => Number(item.id) === categoryId)
   const categoryName = String(category?.name || '').trim().toLowerCase()
   const list = amenityProviders.value
-
   if (Array.isArray(list) && list.length) {
     const directMatch = list.find((provider) => String(provider.business_name || '').toLowerCase().includes(categoryName))
-    if (directMatch) return directMatch
-    return list[0]
+    return directMatch || list[0]
   }
-
-  const fallback = backendProviders.value.find((provider) => String(provider.business_name || '').toLowerCase().includes(categoryName))
-  return fallback || null
+  return backendProviders.value.find((provider) => String(provider.business_name || '').toLowerCase().includes(categoryName)) || null
 })
 
 const selectedAmenityProviderName = computed(() => {
@@ -641,7 +619,18 @@ const selectedAmenityProviderName = computed(() => {
 
 const currentUserDisplayName = computed(() => authStore.user?.name || 'Resident')
 const currentUserInitials = computed(() => authStore.userInitials)
-
+const backendOrigin = computed(() => {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api').replace(/\/$/, '')
+  return apiBase.replace(/\/api$/, '')
+})
+const currentProfileImageUrl = computed(() => {
+  if (profileImagePreviewUrl.value) return profileImagePreviewUrl.value
+  const raw = String(authStore.user?.profile_image_url || '').trim()
+  if (!raw) return ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('/')) return `${backendOrigin.value}${raw}`
+  return `${backendOrigin.value}/${raw}`
+})
 const dashboardStats = computed(() => [
   { label: 'My Complaints', value: residentComplaints.value.length },
   { label: 'My Bookings', value: residentBookings.value.length },
@@ -656,40 +645,27 @@ const quickActions = [
   { label: 'My Family', icon: '👪', to: '/resident/family' },
 ]
 
-const complaintDetails = [
-  { label: 'Category', value: 'Plumbing' },
-  { label: 'Status', value: 'In Progress' },
-  { label: 'Assigned To', value: 'Maintenance Team' },
-  { label: 'Date', value: '2024-05-20' },
-]
+const complaintAssigneeText = computed(() => {
+  if (!complaintDetail.value?.assigned_to_user_id) return 'Unassigned'
+  const provider = backendProviders.value.find((item) => Number(item.user_id) === Number(complaintDetail.value.assigned_to_user_id))
+  return provider?.business_name || `User #${complaintDetail.value.assigned_to_user_id}`
+})
 
-const timeline = [
-  { label: 'Submitted', value: 'Complaint created', done: true },
-  { label: 'Assigned', value: 'Maintenance team notified', done: true },
-  { label: 'In Progress', value: 'Technician working on issue', done: true },
-  { label: 'Resolved', value: 'Pending completion', done: false },
-]
+const complaintResidentText = computed(() => {
+  const userId = complaintDetail.value?.raised_by_user_id
+  return userId ? `Resident #${userId}` : 'Resident'
+})
+
+const complaintTimeline = computed(() => (complaintDetail.value?.updates || []).map((update) => ({ label: String(update.status || '').replace('_', ' '), value: update.comment || update.updated_at || '-' })))
 
 const serviceRates = computed(() => {
   const provider = selectedProvider.value
   if (!provider) return []
-
-  const category = backendServiceCategories.value.find(
-    (item) => Number(item.id) === Number(provider.category_id),
-  )
+  const category = backendServiceCategories.value.find((item) => Number(item.id) === Number(provider.category_id))
   const categoryName = String(category?.name || '').trim().toLowerCase()
-  const matched = serviceProviders.find(
-    (item) => String(item.category || '').trim().toLowerCase() === categoryName,
-  )
-
-  if (matched?.services?.length) {
-    return matched.services
-  }
-
-  if (provider.service_description) {
-    return [{ name: provider.business_name || 'Service', price: 'Price on request' }]
-  }
-
+  const matched = serviceProviders.find((item) => String(item.category || '').trim().toLowerCase() === categoryName)
+  if (matched?.services?.length) return matched.services
+  if (provider.service_description) return [{ name: provider.business_name || 'Service', price: 'Price on request' }]
   return []
 })
 
@@ -697,33 +673,13 @@ const availability = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const calendarDays = days(30)
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00']
 
-async function submitComplaint() {
-  try {
-    await authStore.createComplaint({
-      subject: String(complaintForm.title || '').trim(),
-      description: String(complaintForm.description || '').trim(),
-      category: complaintForm.category,
-      priority: String(complaintForm.priority || 'medium').toLowerCase(),
-    })
-    notify.success('Complaint submitted successfully')
-    complaintForm.title = ''
-    complaintForm.description = ''
-    complaintAiSuggestion.value = null
-    backendComplaints.value = await authStore.listComplaints()
-  } catch (error) {
-    notify.error(error instanceof Error ? error.message : 'Failed to submit complaint')
-  }
-}
-
 function noticeBodyText(notice) {
   const lang = selectedNoticeLanguage.value
   const original = notice.content || notice.body || ''
   if (lang === 'English') return original
   const translations = notice.translations
-  if (translations && typeof translations === 'object' && translations[lang]) {
-    return translations[lang]
-  }
-  return original // fall back to the original text when no translation exists
+  if (translations && typeof translations === 'object' && translations[lang]) return translations[lang]
+  return original
 }
 
 function noticeHasTranslation(notice) {
@@ -737,45 +693,34 @@ function formatAllNoticesSummary(summary) {
   if (!summary) return ''
   if (summary.digest_markdown) return summary.digest_markdown
   const groups = Array.isArray(summary.groups) ? summary.groups : []
-  return groups
-    .map((g) => {
-      const items = Array.isArray(g.items) ? g.items.map((i) => `  • ${i}`).join('\n') : ''
-      return `${g.theme || 'Notices'}:\n${items}`
-    })
-    .join('\n\n')
+  return groups.map((g) => `${g.theme || 'Notices'}:\n${Array.isArray(g.items) ? g.items.map((i) => `  • ${i}`).join('\n') : ''}`).join('\n\n')
 }
-
 
 async function summarizeAllNotices() {
   await withAi('notices-summarize-all', async () => {
-    const notices = (residentNotices.value || []).map((n) => ({
-      title: n.title,
-      body: n.body || n.content || '',
-    }))
-    if (!notices.length) {
-      notify.error('No notices to summarize')
-      return
-    }
+    const notices = (residentNotices.value || []).map((n) => ({ title: n.title, body: n.body || n.content || '' }))
+    if (!notices.length) return notify.error('No notices to summarize')
     allNoticesSummary.value = await authStore.aiSummarizeAllNotices(notices)
     notify.success('All notices summarized')
   })
 }
 
-async function classifyComplaintWithAI() {
-  await withAi('complaint-classify', async () => {
-    if (!String(complaintForm.description || '').trim()) {
-      notify.error('Enter a description first')
-      return
-    }
-    const result = await authStore.aiClassifyComplaint({
-      subject: complaintForm.title,
-      description: complaintForm.description,
+async function submitComplaint() {
+  try {
+    await authStore.createComplaint({
+      subject: String(complaintForm.title || '').trim(),
+      description: String(complaintForm.description || '').trim(),
+      category: complaintForm.category,
+      priority: String(complaintForm.priority || 'medium').toLowerCase(),
     })
-    if (result?.category) complaintForm.category = result.category
-    if (result?.priority) complaintForm.priority = result.priority
-    complaintAiSuggestion.value = result
-    notify.success('AI classification applied')
-  })
+    notify.success('Complaint submitted successfully')
+    complaintForm.title = ''
+    complaintForm.description = ''
+    backendComplaints.value = await authStore.listComplaints()
+    router.push('/resident/complaints')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Failed to submit complaint')
+  }
 }
 
 function formatEventMeta(event) {
@@ -791,41 +736,30 @@ function hasProviderForCategory(categoryId) {
 
 function providerRouteForCategory(categoryId) {
   const provider = backendProviders.value.find((item) => Number(item.category_id) === Number(categoryId))
-  if (!provider) return '/resident/services'
-  return `/resident/services/provider/${provider.id}`
+  return provider ? `/resident/services/provider/${provider.id}` : '/resident/services'
 }
 
 async function loadResidentData() {
   try {
-    if (!authStore.user && authStore.token) {
-      await authStore.fetchMe()
-    }
-
+    if (authStore.token) await authStore.fetchMe()
     if (authStore.user) {
       profileForm.full_name = authStore.user.full_name || authStore.user.name || ''
       profileForm.phone = authStore.user.phone || ''
       profileForm.email = authStore.user.email || ''
     }
-
     if (authStore.token) {
       const searchTerm = String(route.query.q || '').trim()
       const searchQueryString = searchTerm ? new URLSearchParams({ search: searchTerm }).toString() : ''
-      const [
-        eventsResult,
-        noticesResult,
-        complaintsResult,
-        providersResult,
-        categoriesResult,
-        bookingsResult,
-      ] = await Promise.allSettled([
+      const [eventsResult, noticesResult, complaintsResult, providersResult, categoriesResult, bookingsResult, familyResult, billsResult] = await Promise.allSettled([
         authStore.listEvents(searchQueryString),
         authStore.listNotices(searchQueryString),
         authStore.listComplaints(searchQueryString),
         authStore.listProviders(searchQueryString),
         authStore.listServiceCategories(),
         authStore.listBookings(),
+        authStore.listFamilyMembers(),
+        authStore.listMaintenanceBills(),
       ])
-
       if (eventsResult.status === 'fulfilled') backendEvents.value = eventsResult.value
       if (noticesResult.status === 'fulfilled') backendNotices.value = noticesResult.value
       if (complaintsResult.status === 'fulfilled') backendComplaints.value = complaintsResult.value
@@ -835,30 +769,75 @@ async function loadResidentData() {
         backendBookings.value = bookingsResult.value
         await hydrateBookingAmenityNames(backendBookings.value)
       }
+      if (familyResult.status === 'fulfilled') backendFamilyMembers.value = familyResult.value
+      if (billsResult.status === 'fulfilled') backendMaintenanceBills.value = billsResult.value
     }
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to load resident data')
   }
 }
 
+async function loadComplaintDetail() {
+  if (page.value !== 'complaint-details' || !route.params.id) return
+  try {
+    complaintDetailLoading.value = true
+    complaintDetailError.value = ''
+    complaintDetail.value = await authStore.getComplaint(route.params.id)
+  } catch (error) {
+    complaintDetail.value = null
+    complaintDetailError.value = error instanceof Error ? error.message : 'Unable to load complaint details'
+    notify.error(complaintDetailError.value)
+  } finally {
+    complaintDetailLoading.value = false
+  }
+}
+
+function onProfileImageSelected(event) {
+  const file = event?.target?.files?.[0]
+  if (!file) {
+    profileImageFile.value = null
+    profileImagePreviewUrl.value = ''
+    return
+  }
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    notify.error('Invalid file type. Please upload jpg, jpeg, png, or webp image.')
+    profileImageFile.value = null
+    profileImagePreviewUrl.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    notify.error('Image size exceeds 5MB limit.')
+    profileImageFile.value = null
+    profileImagePreviewUrl.value = ''
+    return
+  }
+
+  profileImageFile.value = file
+  profileImagePreviewUrl.value = URL.createObjectURL(file)
+}
+
 async function saveProfile() {
   try {
-    await authStore.updateMe({
-      full_name: String(profileForm.full_name || '').trim(),
-      phone: String(profileForm.phone || '').trim(),
-    })
+    profileSaveBusy.value = true
+    await authStore.updateMe({ full_name: String(profileForm.full_name || '').trim(), phone: String(profileForm.phone || '').trim() })
+    if (profileImageFile.value) {
+      await authStore.uploadProfileImage(profileImageFile.value)
+    }
     isEditingProfile.value = false
+    profileImageFile.value = null
+    profileImagePreviewUrl.value = ''
     notify.success('Profile updated successfully')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Profile update failed')
+  } finally {
+    profileSaveBusy.value = false
   }
 }
 
 async function joinEvent(eventId) {
-  if (!eventId) {
-    notify.error('Invalid event selection')
-    return
-  }
+  if (!eventId) return notify.error('Invalid event selection')
   try {
     await authStore.registerEvent(eventId)
     const next = new Set(joinedEventIds.value)
@@ -871,16 +850,9 @@ async function joinEvent(eventId) {
 }
 
 async function bookServiceNow() {
-  if (!selectedProvider.value?.id) {
-    notify.error('No provider selected')
-    return
-  }
-
+  if (!selectedProvider.value?.id) return notify.error('No provider selected')
   try {
-    await authStore.createBooking({
-      provider_id: selectedProvider.value.id,
-      request_notes: 'Booking created from resident portal',
-    })
+    await authStore.createBooking({ provider_id: selectedProvider.value.id, request_notes: 'Booking created from resident portal' })
     backendBookings.value = await authStore.listBookings()
     await hydrateBookingAmenityNames(backendBookings.value)
     notify.success('Service booking created successfully')
@@ -892,39 +864,43 @@ async function bookServiceNow() {
 async function submitAmenityBooking() {
   try {
     const providerId = Number(selectedAmenityProvider.value?.id)
-    if (!providerId) {
-      notify.error('No provider available for selected facility')
-      return
-    }
-
+    if (!providerId) return notify.error('No provider available for selected facility')
     const category = browseServiceCards.value.find((item) => Number(item.id) === Number(amenityForm.category_id))
-    const notesParts = [
-      category?.name ? `Facility: ${category.name}` : '',
-      amenityForm.date ? `Date: ${amenityForm.date}` : '',
-      amenityForm.time_slot ? `Time: ${amenityForm.time_slot}` : '',
-      amenityForm.purpose ? `Purpose: ${amenityForm.purpose}` : '',
-    ].filter(Boolean)
-
-    await authStore.createBooking({
-      provider_id: providerId,
-      request_notes: notesParts.join(' | ') || 'Amenity booking request',
-    })
-
+    const notesParts = [category?.name ? `Facility: ${category.name}` : '', amenityForm.date ? `Date: ${amenityForm.date}` : '', amenityForm.time_slot ? `Time: ${amenityForm.time_slot}` : '', amenityForm.purpose ? `Purpose: ${amenityForm.purpose}` : ''].filter(Boolean)
+    await authStore.createBooking({ provider_id: providerId, request_notes: notesParts.join(' | ') || 'Amenity booking request' })
     backendBookings.value = await authStore.listBookings()
     await hydrateBookingAmenityNames(backendBookings.value)
-    amenityForm.category_id = ''
-    amenityForm.date = ''
-    amenityForm.time_slot = ''
-    amenityForm.purpose = ''
+    Object.assign(amenityForm, { category_id: '', date: '', time_slot: '', purpose: '' })
     notify.success('Amenity booking created successfully')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to create amenity booking')
   }
 }
 
+async function submitFamilyMember() {
+  try {
+    await authStore.createFamilyMember({ full_name: String(familyForm.full_name || '').trim(), relation: String(familyForm.relation || '').trim(), phone: String(familyForm.phone || '').trim(), age: familyForm.age ? Number(familyForm.age) : null })
+    Object.assign(familyForm, { full_name: '', relation: '', phone: '', age: '' })
+    showFamilyForm.value = false
+    backendFamilyMembers.value = await authStore.listFamilyMembers()
+    notify.success('Family member added successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to add family member')
+  }
+}
+
+async function payBill(billId) {
+  try {
+    await authStore.payMaintenanceBill(billId)
+    backendMaintenanceBills.value = await authStore.listMaintenanceBills()
+    notify.success('Payment recorded successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to record payment')
+  }
+}
+
 async function hydrateBookingAmenityNames(bookingsList) {
   if (!authStore.token || !Array.isArray(bookingsList) || bookingsList.length === 0) return
-
   const nextMap = { ...providerAmenityNameById.value }
   const providerIds = [...new Set(bookingsList.map((item) => Number(item.provider_id)).filter((id) => Number.isFinite(id) && id > 0))]
   const missingIds = providerIds.filter((id) => !nextMap[id])
@@ -932,19 +908,16 @@ async function hydrateBookingAmenityNames(bookingsList) {
     providerAmenityNameById.value = nextMap
     return
   }
-
   const providerResults = await Promise.allSettled(missingIds.map((id) => authStore.getProvider(id)))
   for (let index = 0; index < providerResults.length; index += 1) {
     const result = providerResults[index]
     const providerId = missingIds[index]
     if (result.status !== 'fulfilled' || !result.value) continue
-
     const provider = result.value
     const categoryId = Number(provider.category_id)
     const category = backendServiceCategories.value.find((item) => Number(item.id) === categoryId)
     nextMap[providerId] = category?.name || provider.business_name || `Provider #${providerId}`
   }
-
   providerAmenityNameById.value = nextMap
 }
 
@@ -952,13 +925,9 @@ function bookingFacility(booking) {
   const notes = String(booking?.request_notes || '')
   const match = notes.match(/Facility:\s*([^|]+)/i)
   if (match?.[1]) return match[1].trim()
-
   const providerId = Number(booking?.provider_id)
   if (providerId) {
-    if (providerAmenityNameById.value[providerId]) {
-      return providerAmenityNameById.value[providerId]
-    }
-
+    if (providerAmenityNameById.value[providerId]) return providerAmenityNameById.value[providerId]
     const provider = backendProviders.value.find((item) => Number(item.id) === providerId)
     const categoryId = Number(provider?.category_id)
     if (categoryId) {
@@ -967,7 +936,6 @@ function bookingFacility(booking) {
     }
     if (provider?.business_name) return provider.business_name
   }
-
   return booking?.facility || booking?.provider_name || `Provider #${booking?.provider_id}`
 }
 
@@ -975,9 +943,7 @@ function bookingDate(booking) {
   const notes = String(booking?.request_notes || '')
   const dateMatch = notes.match(/Date:\s*([^|]+)/i)
   const timeMatch = notes.match(/Time:\s*([^|]+)/i)
-  if (dateMatch?.[1] || timeMatch?.[1]) {
-    return [dateMatch?.[1]?.trim(), timeMatch?.[1]?.trim()].filter(Boolean).join(' · ')
-  }
+  if (dateMatch?.[1] || timeMatch?.[1]) return [dateMatch?.[1]?.trim(), timeMatch?.[1]?.trim()].filter(Boolean).join(' · ')
   return booking?.date || booking?.created_at || '-'
 }
 
@@ -995,14 +961,14 @@ async function leaveEvent(eventId) {
 
 onMounted(() => {
   loadResidentData()
+  loadComplaintDetail()
 })
 
-watch(
-  () => route.query.q,
-  () => {
-    loadResidentData()
-  }
-)
+watch(() => route.query.q, () => loadResidentData())
+watch(() => route.fullPath, () => {
+  loadResidentData()
+  loadComplaintDetail()
+})
 </script>
 
 <style scoped>
@@ -1048,6 +1014,15 @@ watch(
 .amenity-booking-form input { min-height: 44px; }
 .screen-header.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .profile-card { text-align: center; }
+.profile-image,
+.profile-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+.profile-preview-wrap { display: flex; justify-content: flex-start; }
 .provider-card, .profile-card { align-items: flex-start; }
 .faq-item { display: block; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
 .faq-item:last-child { border-bottom: none; }

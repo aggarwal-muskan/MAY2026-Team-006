@@ -1,5 +1,6 @@
 from app.core.extensions import db
 from app.models.base import SerializerMixin, TimestampMixin, UpdateTimestampMixin
+from sqlalchemy import func
 
 
 class Society(db.Model, TimestampMixin, SerializerMixin):
@@ -23,6 +24,8 @@ class User(db.Model, TimestampMixin, SerializerMixin):
     full_name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(255), nullable=False, unique=True)
     phone = db.Column(db.String(30), unique=True)
+    flat_number = db.Column(db.String(50))
+    profile_image_url = db.Column(db.String(500))
     password_hash = db.Column(db.String(255), nullable=False)
     status = db.Column(db.String(20), nullable=False, default="active")
 
@@ -35,6 +38,8 @@ class User(db.Model, TimestampMixin, SerializerMixin):
         full_name: str | None = None,
         email: str | None = None,
         phone: str | None = None,
+        flat_number: str | None = None,
+        profile_image_url: str | None = None,
         password_hash: str | None = None,
         status: str = "active",
         **kwargs,
@@ -50,6 +55,10 @@ class User(db.Model, TimestampMixin, SerializerMixin):
             self.email = email
         if phone is not None:
             self.phone = phone
+        if flat_number is not None:
+            self.flat_number = flat_number
+        if profile_image_url is not None:
+            self.profile_image_url = profile_image_url
         if password_hash is not None:
             self.password_hash = password_hash
         if status is not None:
@@ -211,11 +220,98 @@ class VisitorEntry(db.Model, SerializerMixin):
     recorded_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     resident_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     visitor_name = db.Column(db.String(200), nullable=False)
+    purpose = db.Column(db.String(200))
+    flat_number = db.Column(db.String(50))
     vehicle_number = db.Column(db.String(30))
+    vehicle_type = db.Column(db.String(30))
     contact_number = db.Column(db.String(30))
+    approval_status = db.Column(db.String(20), nullable=False, default="pending")
+    approved_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    approved_at = db.Column(db.DateTime)
     entry_time = db.Column(db.DateTime, nullable=False)
     exit_time = db.Column(db.DateTime)
     remarks = db.Column(db.Text)
+
+
+class PatrolLog(db.Model, TimestampMixin, SerializerMixin):
+    __tablename__ = "patrol_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    society_id = db.Column(db.Integer, db.ForeignKey("societies.id", ondelete="CASCADE"), nullable=False)
+    recorded_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    checkpoint = db.Column(db.String(120), nullable=False)
+    note = db.Column(db.Text, nullable=False)
+    patrol_time = db.Column(db.DateTime, nullable=False, default=func.now())
+    status = db.Column(db.String(20), nullable=False, default="logged")
+
+
+class EmergencyAlert(db.Model, TimestampMixin, SerializerMixin):
+    __tablename__ = "emergency_alerts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    society_id = db.Column(db.Integer, db.ForeignKey("societies.id", ondelete="CASCADE"), nullable=False)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    priority = db.Column(db.String(20), nullable=False, default="medium")
+    status = db.Column(db.String(20), nullable=False, default="active")
+    alert_time = db.Column(db.DateTime, nullable=False, default=func.now())
+
+
+class IncidentReport(db.Model, TimestampMixin, SerializerMixin):
+    __tablename__ = "incident_reports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    society_id = db.Column(db.Integer, db.ForeignKey("societies.id", ondelete="CASCADE"), nullable=False)
+    reported_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    incident_type = db.Column(db.String(120), nullable=False)
+    location = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), nullable=False, default="medium")
+    status = db.Column(db.String(30), nullable=False, default="open")
+    occurred_at = db.Column(db.DateTime, nullable=False, default=func.now())
+
+
+class FamilyMember(db.Model, TimestampMixin, SerializerMixin):
+    __tablename__ = "family_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    resident_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    full_name = db.Column(db.String(200), nullable=False)
+    relation = db.Column(db.String(80), nullable=False)
+    phone = db.Column(db.String(30))
+    age = db.Column(db.Integer)
+    is_primary_contact = db.Column(db.Boolean, nullable=False, default=False)
+
+
+class MaintenanceBill(db.Model, TimestampMixin, SerializerMixin):
+    __tablename__ = "maintenance_bills"
+
+    id = db.Column(db.Integer, primary_key=True)
+    resident_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    month_label = db.Column(db.String(40), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    due_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="unpaid")
+    paid_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+
+
+class SystemLog(db.Model, TimestampMixin, SerializerMixin):
+    __tablename__ = "system_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    action = db.Column(db.String(120), nullable=False)
+    details = db.Column(db.Text)
+
+
+class AppSetting(db.Model, UpdateTimestampMixin, SerializerMixin):
+    __tablename__ = "app_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(120), nullable=False, unique=True)
+    setting_value = db.Column(db.String(255), nullable=False)
 
 
 class ProviderReview(db.Model, TimestampMixin, SerializerMixin):

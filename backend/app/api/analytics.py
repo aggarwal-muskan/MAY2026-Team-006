@@ -6,7 +6,7 @@ from app.api.utils import current_user
 from app.core.extensions import db
 from app.core.responses import ok
 from app.core.security import ROLE_ADMIN, ROLE_OWNER, ROLE_SECURITY, ROLE_SERVICE_PROVIDER, ROLE_TENANT, roles_required
-from app.models import Complaint, Event, Notice, ServiceBooking, ServiceProvider, User, VisitorEntry
+from app.models import Complaint, EmergencyAlert, Event, IncidentReport, Notice, ServiceBooking, ServiceProvider, User, VisitorEntry
 
 
 analytics_bp = Blueprint("analytics", __name__, url_prefix="/analytics")
@@ -88,7 +88,18 @@ def provider_dashboard():
 @analytics_bp.get("/dashboard/security")
 @roles_required(ROLE_SECURITY)
 def security_dashboard():
-    return ok({"stats": {"visitors_today": VisitorEntry.query.count(), "pending_approvals": 0, "currently_inside": VisitorEntry.query.filter_by(exit_time=None).count()}})
+    today = datetime.now(UTC).date()
+    recent_entries = VisitorEntry.query.order_by(VisitorEntry.entry_time.desc()).limit(5).all()
+    return ok({
+        "stats": {
+            "visitors_today": VisitorEntry.query.filter(db.func.date(VisitorEntry.entry_time) == today).count(),
+            "pending_approvals": VisitorEntry.query.filter_by(approval_status="pending").count(),
+            "currently_inside": VisitorEntry.query.filter(VisitorEntry.exit_time.is_(None)).count(),
+            "active_alerts": EmergencyAlert.query.filter(EmergencyAlert.status.in_(["active", "open"])).count(),
+            "open_incidents": IncidentReport.query.filter(IncidentReport.status.in_(["open", "under_investigation"])).count(),
+        },
+        "recent_entries": [entry.to_dict() for entry in recent_entries],
+    })
 
 
 @analytics_bp.get("/complaints")

@@ -3,7 +3,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from app.core.extensions import db
-from app.models import Complaint, ComplaintUpdate, Event, Notice, ServiceBooking, ServiceCategory, ServiceProvider, Society, User
+from app.models import AppSetting, Complaint, ComplaintUpdate, EmergencyAlert, Event, FamilyMember, IncidentReport, MaintenanceBill, Notice, PatrolLog, ServiceBooking, ServiceCategory, ServiceProvider, Society, SystemLog, User, VisitorEntry
 from app.services.auth_service import hash_password
 
 
@@ -321,6 +321,99 @@ def _seed_demo_transactions(society):
             ),
         ]
         db.session.add_all(bookings)
+
+    if VisitorEntry.query.count() == 0:
+        visitors = [
+            VisitorEntry(
+                society_id=society.id,
+                recorded_by_user_id=security_user.id,
+                resident_user_id=resident_user.id,
+                visitor_name="Ramesh Courier",
+                purpose="Package Delivery",
+                flat_number="A-101",
+                vehicle_number="MH12AB1234",
+                vehicle_type="Van",
+                contact_number="9876500001",
+                approval_status="approved",
+                approved_by_user_id=security_user.id,
+                approved_at=now - timedelta(hours=3),
+                entry_time=now - timedelta(hours=3),
+                exit_time=now - timedelta(hours=2, minutes=45),
+                remarks="Amazon package delivery",
+            ),
+            VisitorEntry(
+                society_id=society.id,
+                recorded_by_user_id=security_user.id,
+                resident_user_id=resident_user.id,
+                visitor_name="Seema Agarwal",
+                purpose="Family Visit",
+                flat_number="A-101",
+                vehicle_number="DL02AB8901",
+                vehicle_type="Car",
+                contact_number="9876500002",
+                approval_status="pending",
+                entry_time=now - timedelta(minutes=35),
+                remarks="Waiting for resident approval",
+            ),
+            VisitorEntry(
+                society_id=society.id,
+                recorded_by_user_id=security_user.id,
+                visitor_name="Cable TV Technician",
+                purpose="Repair Visit",
+                flat_number="B-201",
+                vehicle_type="Bike",
+                approval_status="approved",
+                approved_by_user_id=security_user.id,
+                approved_at=now - timedelta(hours=1),
+                entry_time=now - timedelta(hours=1),
+                remarks="Network repair",
+            ),
+        ]
+        db.session.add_all(visitors)
+
+    if PatrolLog.query.count() == 0:
+        db.session.add_all([
+            PatrolLog(society_id=society.id, recorded_by_user_id=security_user.id, checkpoint="Gate A", note="All clear", patrol_time=now - timedelta(hours=4), status="logged"),
+            PatrolLog(society_id=society.id, recorded_by_user_id=security_user.id, checkpoint="Basement", note="Vehicle area checked", patrol_time=now - timedelta(hours=2), status="logged"),
+        ])
+
+    if EmergencyAlert.query.count() == 0:
+        db.session.add_all([
+            EmergencyAlert(society_id=society.id, created_by_user_id=security_user.id, title="Fire Alarm Test", description="Routine fire alarm system check.", priority="low", status="completed", alert_time=now - timedelta(days=1)),
+            EmergencyAlert(society_id=society.id, created_by_user_id=security_user.id, title="Power Outage", description="Generator backup active during electrical maintenance.", priority="high", status="active", alert_time=now - timedelta(hours=5)),
+        ])
+
+    if IncidentReport.query.count() == 0:
+        db.session.add_all([
+            IncidentReport(society_id=society.id, reported_by_user_id=security_user.id, incident_type="Trespassing", location="Back Gate", description="Unauthorized person attempted entry.", severity="high", status="under_investigation", occurred_at=now - timedelta(hours=6)),
+            IncidentReport(society_id=society.id, reported_by_user_id=security_user.id, incident_type="Vandalism", location="Garden Area", description="Bench damaged near children play area.", severity="medium", status="resolved", occurred_at=now - timedelta(days=2)),
+        ])
+
+    if FamilyMember.query.count() == 0:
+        db.session.add_all([
+            FamilyMember(resident_user_id=resident_user.id, full_name="Resident User", relation="Self", phone=resident_user.phone, age=35, is_primary_contact=True),
+            FamilyMember(resident_user_id=resident_user.id, full_name="Rohan Resident", relation="Spouse", phone="9000001001", age=37, is_primary_contact=False),
+        ])
+
+    if MaintenanceBill.query.count() == 0:
+        db.session.add_all([
+            MaintenanceBill(resident_user_id=resident_user.id, month_label="June 2026", amount=3450, due_date=(now + timedelta(days=7)).date(), status="unpaid", notes="Includes maintenance, water, electricity"),
+            MaintenanceBill(resident_user_id=resident_user.id, month_label="May 2026", amount=3250, due_date=(now - timedelta(days=20)).date(), status="paid", paid_date=(now - timedelta(days=18)).date(), notes="Paid online"),
+        ])
+
+    if SystemLog.query.count() == 0:
+        db.session.add_all([
+            SystemLog(user_id=admin_user.id, action="User Login", details="Admin logged in"),
+            SystemLog(user_id=security_user.id, action="Visitor Entry", details="Seeded visitor entry created"),
+            SystemLog(user_id=resident_user.id, action="Complaint Created", details="Seeded complaint record"),
+        ])
+
+    if AppSetting.query.count() == 0:
+        db.session.add_all([
+            AppSetting(setting_key="maintenance_reminders", setting_value="true"),
+            AppSetting(setting_key="email_alerts", setting_value="true"),
+            AppSetting(setting_key="auto_approvals", setting_value="false"),
+        ])
 
     db.session.commit()
 

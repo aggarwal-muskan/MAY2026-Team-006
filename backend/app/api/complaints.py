@@ -13,7 +13,7 @@ from app.services.query_service import paginate_query
 
 complaints_bp = Blueprint("complaints", __name__, url_prefix="/complaints")
 
-ALLOWED_COMPLAINT_STATUSES = {"open", "in_progress", "resolved", "closed"}
+ALLOWED_COMPLAINT_STATUSES = {"open", "assigned", "in_progress", "resolved", "rejected", "closed"}
 ALLOWED_PRIORITIES = {"low", "medium", "high", "urgent"}
 
 
@@ -25,6 +25,8 @@ def list_complaints():
 
     if user.role in [ROLE_OWNER, ROLE_TENANT]:
         query = query.filter(Complaint.raised_by_user_id == user.id)
+    elif user.role == ROLE_SERVICE_PROVIDER:
+        query = query.filter(Complaint.assigned_to_user_id == user.id)
     elif user.role == ROLE_SECURITY:
         query = query.filter(Complaint.category == "Security")
 
@@ -139,7 +141,7 @@ def assign_complaint(complaint_id):
 
     assignee = db.session.get(User, int(data["assigned_to_user_id"]))
     if not assignee:
-        return fail("Assigned user not found", "NOT_FOUND", 404)
+        return fail("Assignee user not found", "NOT_FOUND", 404)
     if assignee.society_id != complaint.society_id:
         return fail("Assigned user belongs to a different society", "VALIDATION_ERROR", 400)
     if assignee.role not in {ROLE_ADMIN, ROLE_SECURITY, ROLE_SERVICE_PROVIDER}:
@@ -149,7 +151,7 @@ def assign_complaint(complaint_id):
         return fail("Complaint already assigned to this user", "DUPLICATE", 409)
 
     complaint.assigned_to_user_id = assignee.id
-    complaint.status = "in_progress"
+    complaint.status = "assigned" if assignee.role == ROLE_SERVICE_PROVIDER else "in_progress"
     update = ComplaintUpdate(
         complaint_id=complaint.id,
         updated_by_user_id=user.id,
@@ -190,6 +192,11 @@ def update_complaint_status(complaint_id):
         return fail("Closed complaints cannot be updated", "INVALID_STATUS_TRANSITION", 409)
     if status == "in_progress" and not complaint.assigned_to_user_id:
         return fail("Assign complaint before moving to in_progress", "VALIDATION_ERROR", 400)
+
+    if user.role == ROLE_SERVICE_PROVIDER:
+        provider_allowed = {"in_progress", "rejected", "resolved"}
+        if status not in provider_allowed:
+            return fail("Service providers can update status only to in_progress, rejected, or resolved", "FORBIDDEN", 403)
 
     complaint.status = status
     update = ComplaintUpdate(
