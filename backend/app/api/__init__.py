@@ -5,6 +5,7 @@ from app.api.analytics import analytics_bp, reports_bp
 from app.api.auth import auth_bp
 from app.api.bookings import bookings_bp
 from app.api.complaints import complaints_bp
+from app.api.emerging_issues import emerging_issues_bp
 from app.api.events import events_bp
 from app.api.notices import notices_bp
 from app.api.portal_data import family_members_bp, maintenance_bills_bp, settings_bp, system_logs_bp, tenants_bp
@@ -32,6 +33,7 @@ def create_api_blueprint():
     api.register_blueprint(notices_bp)
     api.register_blueprint(events_bp)
     api.register_blueprint(complaints_bp)
+    api.register_blueprint(emerging_issues_bp)
     api.register_blueprint(service_categories_bp)
     api.register_blueprint(providers_bp)
     api.register_blueprint(slots_bp)

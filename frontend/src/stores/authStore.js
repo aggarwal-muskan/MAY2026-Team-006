@@ -387,6 +387,11 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
+  async function getEmergingIssues() {
+    const payload = await authFetch('/complaints/emerging', { method: 'GET' })
+    return payload?.data || []
+  }
+
   async function getComplaintsAnalytics() {
     const payload = await authFetch('/analytics/complaints', { method: 'GET' })
     return payload?.data?.status_breakdown || {}
@@ -906,6 +911,7 @@ export const useAuthStore = defineStore('auth', () => {
     createComplaint,
     assignComplaint,
     updateComplaintStatus,
+    getEmergingIssues,
     getComplaintsAnalytics,
     listProviders,
     listServiceCategories,

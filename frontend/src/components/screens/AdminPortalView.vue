@@ -101,6 +101,81 @@
 
       <div class="card toolbar"><input v-model="userSearchQuery" type="text" placeholder="Search assign users (name, email, phone, role)" /></div>
 
+      <div class="emerging-issues-wrapper">
+        <div v-if="!emergingIssuesLoaded && !isLoadingEmergingIssues" class="card emerging-issues-trigger">
+          <div>
+            <h3 class="card-title">Emerging Issues</h3>
+            <p>Let AI review current complaints and group recurring issues into cards.</p>
+          </div>
+          <button class="btn btn-primary" type="button" @click="loadEmergingIssues">
+            🤖 Load Emerging Issues with AI
+          </button>
+        </div>
+
+        <div v-else-if="isLoadingEmergingIssues" class="card emerging-issues-loading">
+          <div class="thinking-dots"><span></span><span></span><span></span></div>
+          <p>Thinking… please wait around 30s while AI reviews and clusters complaints.</p>
+        </div>
+
+        <div v-else-if="emergingIssues.length > 0" class="emerging-issues">
+          <div class="emerging-issues-header">
+            <h3 class="card-title">Emerging Issues</h3>
+            <button class="btn btn-outline btn-sm" type="button" @click="loadEmergingIssues">Refresh</button>
+          </div>
+          <div class="card-grid issue-grid">
+            <button
+              v-for="issue in emergingIssues"
+              :key="issue.category + issue.title"
+              class="card issue-card"
+              type="button"
+              @click="openCluster(issue)"
+            >
+              <div class="issue-icon">{{ categoryIcon(issue.category) }}</div>
+              <div class="issue-category">{{ issue.category }}</div>
+              <div class="issue-title">{{ issue.title }}</div>
+              <div class="issue-count">Review similar complaints</div>
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="card emerging-issues-empty">
+          <p>No emerging issues detected right now.</p>
+          <button class="btn btn-outline btn-sm" type="button" @click="loadEmergingIssues">Re-check</button>
+        </div>
+      </div>
+
+      <div v-if="activeCluster" class="modal-overlay" @click.self="closeClusterModal">
+        <div class="modal-panel">
+          <div class="modal-header">
+            <div>
+              <h3>{{ categoryIcon(activeCluster.category) }} {{ activeCluster.category }} — {{ activeCluster.title }}</h3>
+              <p>{{ activeCluster.count }} complaints in this cluster</p>
+            </div>
+            <button class="btn btn-outline btn-sm" @click="closeClusterModal">Close</button>
+          </div>
+          <div class="modal-body">
+            <div v-for="complaint in clusterComplaints" :key="complaint.id" class="cluster-row">
+              <div class="cluster-row-main">
+                <strong>#{{ complaint.id }} — {{ complaint.subject }}</strong>
+                <p>{{ complaint.description }}</p>
+                <span class="badge" :class="badgeClass(complaint.status)">{{ complaint.status }}</span>
+              </div>
+              <div class="cluster-row-actions">
+                <div class="row-actions" v-if="canAssignComplaint(complaint)">
+                  <select v-model="complaintAssignments[complaint.id]">
+                    <option disabled value="">Select provider</option>
+                    <option v-for="person in assignableUsers" :key="person.id" :value="person.id">{{ person.name }}</option>
+                  </select>
+                  <button class="btn btn-secondary btn-sm" @click="assignComplaintToUser(complaint)">{{ complaint.assigned_to_user_id ? 'Reassign' : 'Assign' }}</button>
+                </div>
+                <span v-else class="chip">Closed</span>
+              </div>
+            </div>
+            <div v-if="clusterComplaints.length === 0" class="list-row">These complaints have since moved out of this cluster's list.</div>
+          </div>
+        </div>
+      </div>
+
       <div class="card toolbar row-between" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);">
         <div class="row-actions toolbar-controls" style="display: flex; gap: var(--space-4); align-items: center;">
           <label class="filter-label" style="display: flex; align-items: center; gap: var(--space-2); font-weight: 500;">
@@ -349,6 +424,10 @@ const adminDashboardStats = ref({})
 const complaintAssignments = ref({})
 const bookingStatusBreakdown = ref({})
 const complaintStatusBreakdown = ref({})
+const emergingIssues = ref([])
+const activeCluster = ref(null)
+const isLoadingEmergingIssues = ref(false)
+const emergingIssuesLoaded = ref(false)
 const serviceCategories = ref([])
 const monthlyReport = ref({})
 const showResidentForm = ref(false)
@@ -498,6 +577,38 @@ const assignableUsers = computed(() => {
     .map((user) => ({ id: user.id, name: user.full_name || user.name || `User #${user.id}` }))
 })
 
+const clusterComplaints = computed(() => {
+  if (!activeCluster.value) return []
+  const ids = new Set(activeCluster.value.complaint_ids || [])
+  return backendComplaints.value.filter((complaint) => ids.has(complaint.id))
+})
+
+function categoryIcon(category) {
+  const icons = { Electrical: '⚡', Plumbing: '🔧', Maintenance: '🛠', Security: '🛡' }
+  return icons[category] || '📋'
+}
+
+function openCluster(issue) {
+  activeCluster.value = issue
+}
+
+function closeClusterModal() {
+  activeCluster.value = null
+}
+
+async function loadEmergingIssues() {
+  isLoadingEmergingIssues.value = true
+  try {
+    emergingIssues.value = await authStore.getEmergingIssues()
+  } catch (error) {
+    emergingIssues.value = []
+    notify.error(error instanceof Error ? error.message : 'Unable to load emerging issues')
+  } finally {
+    isLoadingEmergingIssues.value = false
+    emergingIssuesLoaded.value = true
+  }
+}
+
 async function loadAllUsers(searchTerm = '') {
   const limit = 100
   let page = 1
@@ -509,6 +620,28 @@ async function loadAllUsers(searchTerm = '') {
     if (searchTerm) params.set('search', searchTerm)
     const query = params.toString()
     const payload = await authStore.listUsers(query, { withMeta: true })
+    const items = payload?.items || []
+    allItems.push(...items)
+
+    const totalPages = Number(payload?.pagination?.pages || 1)
+    pages = Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1
+    page += 1
+  } while (page <= pages)
+
+  return allItems
+}
+
+async function loadAllComplaints(searchTerm = '') {
+  const limit = 100
+  let page = 1
+  let pages = 1
+  const allItems = []
+
+  do {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (searchTerm) params.set('search', searchTerm)
+    const query = params.toString()
+    const payload = await authStore.listComplaints(query, { withMeta: true })
     const items = payload?.items || []
     allItems.push(...items)
 
@@ -593,7 +726,7 @@ async function loadAdminData() {
       ] = await Promise.allSettled([
         loadAllUsers(''),
         authStore.listProviders(searchQueryString),
-        authStore.listComplaints(searchQueryString),
+        loadAllComplaints(searchTerm),
         authStore.listNotices(searchQueryString),
         authStore.listEvents(searchQueryString),
         authStore.getAdminDashboardStats(),
@@ -806,7 +939,7 @@ async function assignComplaintToUser(complaint) {
 
   try {
     await authStore.assignComplaint(complaint.id, selectedUserId)
-    backendComplaints.value = await authStore.listComplaints()
+    backendComplaints.value = await loadAllComplaints()
     syncComplaintAssignments()
     complaintStatusBreakdown.value = await authStore.getComplaintsAnalytics()
     notify.success('Complaint assigned successfully')
@@ -1133,6 +1266,114 @@ watch(tenantSearchQuery, () => {
 .toolbar input { width: 100%; }
 .notice-row, .report-card { display: grid; gap: var(--space-3); }
 .row-actions { display: flex; gap: var(--space-2); }
+
+.emerging-issues-wrapper { margin-bottom: var(--space-4); }
+.emerging-issues { display: grid; gap: var(--space-3); }
+.emerging-issues-header { display: flex; align-items: center; justify-content: space-between; }
+.issue-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.issue-card {
+  display: grid;
+  gap: var(--space-1);
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface, #fff);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.issue-card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+.issue-icon { font-size: 1.5rem; }
+.issue-category { font-size: var(--text-xs, 0.75rem); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-secondary); }
+.issue-title { font-weight: var(--font-bold); font-size: var(--text-lg, 1.05rem); }
+.issue-count { color: var(--color-text-secondary); font-size: var(--text-sm, 0.85rem); }
+
+.emerging-issues-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.emerging-issues-trigger h3 { margin: 0 0 var(--space-1) 0; }
+.emerging-issues-trigger p { margin: 0; color: var(--color-text-secondary); }
+
+.emerging-issues-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.emerging-issues-loading p { margin: 0; color: var(--color-text-secondary); }
+
+.emerging-issues-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.emerging-issues-empty p { margin: 0; color: var(--color-text-secondary); }
+
+.thinking-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.thinking-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: thinking-dot-wave 1.2s infinite ease-in-out;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes thinking-dot-wave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 20, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 1000;
+}
+.modal-panel {
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg, 12px);
+  max-width: 720px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.modal-header h3 { margin: 0 0 var(--space-1) 0; }
+.modal-header p { margin: 0; color: var(--color-text-secondary); }
+.modal-body { padding: var(--space-5); overflow-y: auto; display: grid; gap: var(--space-4); }
+.cluster-row {
+  display: grid;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.cluster-row:last-child { border-bottom: none; padding-bottom: 0; }
+.cluster-row-main p { color: var(--color-text-secondary); margin: var(--space-1) 0; }
+.cluster-row-actions { display: flex; }
+.cluster-row-actions .row-actions { flex: 1; display: flex; gap: var(--space-2); }
+.cluster-row-actions .row-actions select { flex: 1; }
+
 .form-card { display: grid; gap: var(--space-5); }
 .form-grid.two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) 0; }
