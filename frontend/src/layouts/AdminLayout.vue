@@ -92,7 +92,7 @@
                 <path d="m21 21-4.35-4.35"></path>
               </svg>
             </span>
-            <input type="text" placeholder="Search anything..." v-model="searchQuery" />
+            <input type="text" placeholder="Search anything..." v-model="searchQuery" @keydown.enter.prevent="submitSearch" />
           </div>
           <div class="topbar-user">
             <div class="avatar avatar-sm">A</div>
@@ -113,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -124,6 +124,7 @@ const authStore = useAuthStore()
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
 const searchQuery = ref('')
+const complaintBadgeCount = ref(0)
 
 function isActive(path) {
   return route.path === path || route.path.startsWith(path + '/')
@@ -132,6 +133,24 @@ function isActive(path) {
 function handleLogout() {
   authStore.logout()
   router.push('/login')
+}
+
+function submitSearch() {
+  const trimmed = String(searchQuery.value || '').trim()
+  router.push({
+    path: route.path,
+    query: trimmed ? { ...route.query, q: trimmed } : { ...route.query, q: undefined },
+  })
+}
+
+async function loadAdminBadgeCounts() {
+  if (!authStore.token) return
+  try {
+    const complaintsPayload = await authStore.listComplaints({ withMeta: true })
+    complaintBadgeCount.value = complaintsPayload?.pagination?.total ?? complaintsPayload?.items?.length ?? 0
+  } catch {
+    complaintBadgeCount.value = 0
+  }
 }
 
 const iconDashboard = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>'
@@ -165,7 +184,7 @@ const sidebarItems = computed(() => [
   {
     label: 'Management',
     items: [
-      { label: 'Complaints', to: '/admin/complaints', icon: iconFile, badge: 15 },
+      { label: 'Complaints', to: '/admin/complaints', icon: iconFile, badge: complaintBadgeCount.value },
       { label: 'Amenities', to: '/admin/events', icon: iconCalendar },
       { label: 'Notices', to: '/admin/notices', icon: iconBell },
       { label: 'Events', to: '/admin/events', icon: iconCalendar },
@@ -189,6 +208,25 @@ const sidebarItems = computed(() => [
     ]
   },
 ])
+
+onMounted(() => {
+  loadAdminBadgeCounts()
+})
+
+watch(
+  () => route.fullPath,
+  () => {
+    loadAdminBadgeCounts()
+  }
+)
+
+watch(
+  () => route.query.q,
+  (value) => {
+    searchQuery.value = String(value || '')
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

@@ -139,7 +139,7 @@ def decline_booking(booking_id):
     if not provider or provider.user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
 
-    if booking.booking_status not in ACCEPTABLE_STATUSES:
+    if booking.booking_status not in {"requested", "accepted"}:
         return _invalid_state("decline", booking.booking_status)
 
     booking.booking_status = "declined"
@@ -164,7 +164,7 @@ def complete_booking(booking_id):
     if not provider or provider.user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
 
-    if booking.booking_status in TERMINAL_STATUSES:
+    if booking.booking_status != "accepted":
         return _invalid_state("complete", booking.booking_status)
 
     booking.booking_status = "completed"

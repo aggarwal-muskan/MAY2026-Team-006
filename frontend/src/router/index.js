@@ -3,6 +3,21 @@
 // ============================================
 import { createRouter, createWebHistory } from 'vue-router'
 
+const dashboardByRole = {
+  resident: '/resident/dashboard',
+  admin: '/admin/dashboard',
+  provider: '/provider/dashboard',
+  security: '/security/dashboard',
+}
+
+function getStoredRole() {
+  return localStorage.getItem('socioneed.role')
+}
+
+function hasSession() {
+  return Boolean(localStorage.getItem('socioneed.token'))
+}
+
 // ── Public Pages ──
 const LandingPage = () => import('@/views/public/LandingPage.vue')
 const AboutUs = () => import('@/views/public/AboutUs.vue')
@@ -106,8 +121,26 @@ const router = createRouter({
 
 // ── Navigation Guard ──
 router.beforeEach((to, from, next) => {
-  // For this frontend-only version, we allow all navigation
-  // In production, this would check auth state
+  const requiredRole = to.meta?.role
+  const isPublicRoute = !requiredRole
+  const isLoggedIn = hasSession()
+  const currentRole = getStoredRole()
+
+  if (!isPublicRoute && !isLoggedIn) {
+    next('/login')
+    return
+  }
+
+  if (requiredRole && currentRole && requiredRole !== currentRole) {
+    next(dashboardByRole[currentRole] || '/login')
+    return
+  }
+
+  if ((to.path === '/login' || to.path === '/register') && isLoggedIn && currentRole) {
+    next(dashboardByRole[currentRole] || '/login')
+    return
+  }
+
   next()
 })
 

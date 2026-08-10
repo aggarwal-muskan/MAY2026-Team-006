@@ -2,12 +2,13 @@
 
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
+from sqlalchemy.exc import IntegrityError
 
 from app.api.utils import current_user, parse_date, parse_datetime
 from app.core.extensions import db
 from app.core.responses import fail, ok
 from app.core.security import ROLE_ADMIN, ROLE_SERVICE_PROVIDER, roles_required
-from app.models import ProviderReview, ProviderSlot, ServiceCategory, ServiceProvider, ServiceBooking
+from app.models import ProviderReview, ProviderSlot, ServiceCategory, ServiceProvider, ServiceBooking, User
 from app.services.query_service import paginate_query
 
 
@@ -100,17 +101,42 @@ def create_provider():
     if missing:
         return fail(f"Missing required fields: {', '.join(missing)}", "VALIDATION_ERROR", 400)
 
-    user_id = data.get("user_id", actor.id)
+    category_id = int(data.get("category_id"))
+    category = db.session.get(ServiceCategory, category_id)
+    if not category:
+        return fail("Category not found", "NOT_FOUND", 404)
+
+    requested_user_id = data.get("user_id", actor.id)
+    user_id = int(requested_user_id)
+    user = db.session.get(User, user_id)
+    if not user:
+        return fail("User not found", "NOT_FOUND", 404)
+
+    if actor.role == ROLE_SERVICE_PROVIDER and user_id != actor.id:
+        return fail("Forbidden", "FORBIDDEN", 403)
+
+    if user.role != ROLE_SERVICE_PROVIDER:
+        return fail("Selected user is not a service provider", "VALIDATION_ERROR", 400)
+
+    existing_profile = ServiceProvider.query.filter_by(user_id=user_id).first()
+    if existing_profile:
+        return fail("Provider profile already exists for this user", "DUPLICATE_PROVIDER_PROFILE", 409)
+
     provider = ServiceProvider(
         user_id=user_id,
-        category_id=data["category_id"],
+        category_id=category_id,
         business_name=data["business_name"],
         service_description=data.get("service_description"),
         verification_status="pending",
         rating_avg=0,
     )
-    db.session.add(provider)
-    db.session.commit()
+    try:
+        db.session.add(provider)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return fail("Unable to create provider profile due to conflicting data", "CONSTRAINT_VIOLATION", 409)
+
     return ok(provider.to_dict(), "Provider profile created", 201)
 
 

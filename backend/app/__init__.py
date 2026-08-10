@@ -6,7 +6,8 @@ _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
 load_dotenv()
 
-from flask import Flask
+from flask import Flask, send_from_directory
+from sqlalchemy.exc import IntegrityError
 
 from app.api import create_api_blueprint
 from app.core.config import Config
@@ -106,6 +107,11 @@ def create_app(config_class=Config):
     def favicon():
         return ("", 204)
 
+    @app.get("/uploads/<path:filename>")
+    def uploaded_file(filename):
+        uploads_root = os.path.join(app.instance_path, "uploads")
+        return send_from_directory(uploads_root, filename)
+
     @app.cli.command("seed")
     def seed_command():
         seed_initial_data()
@@ -114,7 +120,10 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
         _ensure_schema_upgrades()
-        seed_initial_data()
+        try:
+            seed_initial_data()
+        except IntegrityError:
+            db.session.rollback()
 
     return app
 
@@ -129,9 +138,47 @@ def _ensure_schema_upgrades():
 
     try:
         inspector = inspect(db.engine)
-        notice_columns = {col["name"] for col in inspector.get_columns("notices")}
-        if "translations" not in notice_columns:
-            db.session.execute(text("ALTER TABLE notices ADD COLUMN translations TEXT"))
-            db.session.commit()
+        table_names = set(inspector.get_table_names())
+
+        if "notices" in table_names:
+            notice_columns = {col["name"] for col in inspector.get_columns("notices")}
+            if "translations" not in notice_columns:
+                try:
+                    db.session.execute(text("ALTER TABLE notices ADD COLUMN translations TEXT"))
+                    db.session.commit()
+                except Exception:  # noqa: BLE001
+                    db.session.rollback()
+
+        if "visitor_entries" in table_names:
+            visitor_columns = {col["name"] for col in inspector.get_columns("visitor_entries")}
+            visitor_column_statements = {
+                "purpose": "ALTER TABLE visitor_entries ADD COLUMN purpose VARCHAR(200)",
+                "flat_number": "ALTER TABLE visitor_entries ADD COLUMN flat_number VARCHAR(50)",
+                "vehicle_type": "ALTER TABLE visitor_entries ADD COLUMN vehicle_type VARCHAR(30)",
+                "approval_status": "ALTER TABLE visitor_entries ADD COLUMN approval_status VARCHAR(20) DEFAULT 'pending'",
+                "approved_by_user_id": "ALTER TABLE visitor_entries ADD COLUMN approved_by_user_id INTEGER",
+                "approved_at": "ALTER TABLE visitor_entries ADD COLUMN approved_at DATETIME",
+            }
+            for column_name, statement in visitor_column_statements.items():
+                if column_name not in visitor_columns:
+                    try:
+                        db.session.execute(text(statement))
+                        db.session.commit()
+                    except Exception:  # noqa: BLE001
+                        db.session.rollback()
+
+        if "users" in table_names:
+            user_columns = {col["name"] for col in inspector.get_columns("users")}
+            user_column_statements = {
+                "flat_number": "ALTER TABLE users ADD COLUMN flat_number VARCHAR(50)",
+                "profile_image_url": "ALTER TABLE users ADD COLUMN profile_image_url VARCHAR(500)",
+            }
+            for column_name, statement in user_column_statements.items():
+                if column_name not in user_columns:
+                    try:
+                        db.session.execute(text(statement))
+                        db.session.commit()
+                    except Exception:  # noqa: BLE001
+                        db.session.rollback()
     except Exception:  # noqa: BLE001 - never block startup on a best-effort upgrade
         db.session.rollback()

@@ -7,7 +7,7 @@
         <div v-for="stat in providerStats" :key="stat.label" class="card stat-card"><div class="stat-label">{{ stat.label }}</div><div class="stat-value">{{ stat.value }}</div></div>
       </div>
       <div class="content-grid two-col">
-        <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="booking in providerBookingsList.slice(0, 3)" :key="booking.id" class="list-row"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></div></section>
+        <section class="card"><h3 class="card-title">Today's Schedule</h3><div v-for="item in filteredProviderWorkItems.slice(0, 3)" :key="`${item.kind}-${item.id}`" class="list-row"><div><strong>{{ item.title }}</strong><p>{{ item.subtitle }}</p></div><span class="badge" :class="badgeClass(item.status)">{{ item.status }}</span></div></section>
         <section class="card"><h3 class="card-title">Quick Actions</h3><div class="chip-row"><router-link to="/provider/services" class="chip-link">Update Services</router-link><router-link to="/provider/availability" class="chip-link">Edit Availability</router-link><router-link to="/provider/earnings" class="chip-link">View Earnings</router-link></div></section>
       </div>
       </div>
@@ -17,9 +17,9 @@
       <div class="screen-header"><h1>Bookings</h1><p>Accept or reject incoming requests.</p></div>
       <div class="chip-row">
         <span class="chip">Pending Requests ({{ pendingRequestsCount }})</span>
-        <span class="chip">Booking History ({{ providerBookingsList.length }})</span>
+        <span class="chip">Work History ({{ bookingHistoryCount }})</span>
       </div>
-      <div class="stack"><article v-for="booking in providerBookingsList" :key="booking.id" class="card booking-card"><div><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || 'Service request' }} · {{ booking.created_at || '-' }}</p></div><div class="row-actions"><button class="btn btn-secondary btn-sm" @click="acceptProviderBooking(booking.id)">Accept</button><button class="btn btn-outline btn-sm" @click="declineProviderBooking(booking.id)">Reject</button><button class="btn btn-primary btn-sm" @click="completeProviderBooking(booking.id)">Complete</button></div></article></div>
+      <div class="stack"><article v-for="item in orderedProviderWorkItems" :key="`${item.kind}-${item.id}`" class="card booking-card"><div><strong>{{ item.title }}</strong><p>{{ item.subtitle }}</p></div><div class="row-actions"><button v-if="canAcceptWorkItem(item)" class="btn btn-secondary btn-sm" :disabled="Boolean(actionBookingIds[`${item.kind}-${item.id}`])" @click="acceptProviderWorkItem(item)">Accept</button><button v-if="canDeclineWorkItem(item)" class="btn btn-outline btn-sm" :disabled="Boolean(actionBookingIds[`${item.kind}-${item.id}`])" @click="declineProviderWorkItem(item)">Reject</button><button v-if="canCompleteWorkItem(item)" class="btn btn-primary btn-sm" :disabled="Boolean(actionBookingIds[`${item.kind}-${item.id}`])" @click="completeProviderWorkItem(item)">Complete</button><span v-if="!canAcceptWorkItem(item) && !canDeclineWorkItem(item) && !canCompleteWorkItem(item)" class="chip">No actions</span></div></article></div>
     </template>
 
     <template v-else-if="page === 'availability'">
@@ -79,7 +79,27 @@
     </template>
 
     <template v-else-if="page === 'profile'">
-      <div class="content-grid two-col"><section class="card profile-card"><div class="avatar avatar-xl">{{ userInitials }}</div><h1>{{ providerName }}</h1><p>{{ providerRoleText }}</p><button class="btn btn-outline">Edit</button></section><section class="card"><h3 class="card-title">Contact</h3><p>Phone: {{ providerPhone }}</p><p>Email: {{ providerEmail }}</p></section></div>
+      <div class="content-grid two-col">
+        <section class="card profile-card">
+          <div class="avatar avatar-xl">{{ userInitials }}</div>
+          <h1>{{ providerName }}</h1>
+          <p>{{ providerRoleText }}</p>
+          <button class="btn btn-outline" @click="isEditingProfile = !isEditingProfile">{{ isEditingProfile ? 'Cancel' : 'Edit' }}</button>
+        </section>
+        <section class="card">
+          <h3 class="card-title">Contact</h3>
+          <template v-if="!isEditingProfile">
+            <p>Phone: {{ providerPhone }}</p>
+            <p>Email: {{ providerEmail }}</p>
+          </template>
+          <form v-else class="form-card" @submit.prevent="saveProviderProfile">
+            <label class="form-group"><span class="form-label">Full Name</span><input v-model="profileForm.full_name" type="text" /></label>
+            <label class="form-group"><span class="form-label">Phone</span><input v-model="profileForm.phone" type="text" /></label>
+            <label class="form-group"><span class="form-label">Email (read-only)</span><input v-model="profileForm.email" type="text" disabled /></label>
+            <button class="btn btn-primary">Save Profile</button>
+          </form>
+        </section>
+      </div>
     </template>
 
     <template v-else-if="page === 'notifications'">
@@ -99,12 +119,12 @@
 
     <template v-else-if="page === 'customer-history'">
       <div class="screen-header"><h1>Customer History</h1><p>Past customers and request history.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="booking in providerBookingsList" :key="booking.id + 'history'"><td>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</td><td>{{ booking.request_notes || '-' }}</td><td>{{ booking.created_at || '-' }}</td><td><span class="badge" :class="badgeClass(booking.booking_status || booking.status)">{{ booking.booking_status || booking.status }}</span></td></tr></tbody></table></div>
+      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody><tr v-for="item in filteredProviderWorkItems" :key="`${item.kind}-${item.id}-history`"><td>{{ item.title }}</td><td>{{ item.subtitle }}</td><td>{{ item.date }}</td><td><span class="badge" :class="badgeClass(item.status)">{{ item.status }}</span></td></tr></tbody></table></div>
     </template>
 
     <template v-else-if="page === 'completed-jobs'">
       <div class="screen-header"><h1>Completed Jobs</h1><p>Finished work and service outcomes.</p></div>
-      <div class="stack"><article v-for="booking in providerBookingsList.filter(item => (item.booking_status || item.status) === 'completed')" :key="booking.id" class="card completed-row"><strong>{{ booking.resident_name || `Resident #${booking.resident_user_id}` }}</strong><p>{{ booking.request_notes || '-' }}</p></article></div>
+      <div class="stack"><article v-for="item in filteredProviderWorkItems.filter(item => String(item.status).toLowerCase() === 'completed' || String(item.status).toLowerCase() === 'resolved')" :key="`${item.kind}-${item.id}`" class="card completed-row"><strong>{{ item.title }}</strong><p>{{ item.subtitle }}</p></article></div>
     </template>
 
     <template v-else-if="page === 'payouts'">
@@ -119,7 +139,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { faqs, providerBookings, reviews, serviceProviders } from '@/data/mockData'
+import { faqs } from '@/data/mockData'
 import { badgeClass, stars } from './screenUtils'
 
 const route = useRoute()
@@ -127,24 +147,82 @@ const authStore = useAuthStore()
 const notify = useNotificationStore()
 const page = computed(() => route.meta.page || 'dashboard')
 const backendBookings = ref([])
+const backendAssignedComplaints = ref([])
 const providerStatsLive = ref({})
 const providerProfile = ref(null)
 const providerCategories = ref([])
 const providerSlots = ref([])
 const providerReviewsLive = ref([])
 const providerEarnings = ref({})
+const providerBookingsMeta = ref({ total: 0 })
+const actionBookingIds = ref({})
+const isEditingProfile = ref(false)
 const serviceForm = ref({ business_name: '', service_description: '' })
 const slotForm = ref({ slot_start: '', slot_end: '' })
+const profileForm = ref({ full_name: '', phone: '', email: '' })
 
 const providerName = computed(() => authStore.user?.name || 'Service Provider')
 const userInitials = computed(() => authStore.userInitials || 'SP')
 const providerEmail = computed(() => authStore.user?.email || '-')
 const providerPhone = computed(() => authStore.user?.phone || '-')
 const providerRoleText = computed(() => (authStore.user?.category ? `${authStore.user.category} Provider` : 'Verified Provider'))
+const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
 
 const providerBookingsList = computed(() => {
-  if (authStore.token) return backendBookings.value
-  return providerBookings
+  return backendBookings.value
+})
+
+const providerWorkItems = computed(() => {
+  const bookingItems = providerBookingsList.value.map((booking) => ({
+    kind: 'booking',
+    id: booking.id,
+    title: booking.resident_name || `Resident #${booking.resident_user_id}`,
+    subtitle: booking.request_notes || 'Service request',
+    status: booking.booking_status || booking.status || 'requested',
+    date: booking.created_at || '-',
+    raw: booking,
+  }))
+
+  const complaintItems = backendAssignedComplaints.value.map((complaint) => ({
+    kind: 'complaint',
+    id: complaint.id,
+    title: complaint.subject || complaint.title || `Complaint #${complaint.id}`,
+    subtitle: `${complaint.category || 'General'} · Resident #${complaint.raised_by_user_id || '-'}`,
+    status: complaint.status || 'assigned',
+    date: complaint.created_at || '-',
+    raw: complaint,
+  }))
+
+  return [...complaintItems, ...bookingItems]
+})
+
+function matchesProviderBookingSearch(booking, query) {
+  if (!query) return true
+  const values = [
+    booking?.resident_name,
+    booking?.resident_user_id,
+    booking?.request_notes,
+    booking?.created_at,
+    booking?.booking_status,
+    booking?.status,
+  ].map((value) => String(value || '').toLowerCase())
+  return values.some((value) => value.includes(query))
+}
+
+const filteredProviderBookings = computed(() => {
+  const query = globalSearchQuery.value
+  if (!query) return providerBookingsList.value
+  return providerBookingsList.value.filter((booking) => matchesProviderBookingSearch(booking, query))
+})
+
+const filteredProviderWorkItems = computed(() => {
+  const query = globalSearchQuery.value
+  if (!query) return providerWorkItems.value
+  return providerWorkItems.value.filter((item) => matchesProviderBookingSearch(item, query))
+})
+
+const bookingHistoryCount = computed(() => {
+  return filteredProviderWorkItems.value.length
 })
 
 function bookingStatus(item) {
@@ -152,11 +230,20 @@ function bookingStatus(item) {
 }
 
 const pendingRequestsCount = computed(() => {
-  return providerBookingsList.value.filter((item) => bookingStatus(item) === 'requested').length
+  return providerWorkItems.value.filter((item) => ['requested', 'assigned'].includes(String(item.status || '').toLowerCase())).length
 })
 
 const completedBookingsCount = computed(() => {
-  return providerBookingsList.value.filter((item) => bookingStatus(item) === 'completed').length
+  return providerWorkItems.value.filter((item) => ['completed', 'resolved'].includes(String(item.status || '').toLowerCase())).length
+})
+
+const orderedProviderWorkItems = computed(() => {
+  const priority = { assigned: 0, requested: 0, accepted: 1, in_progress: 1, completed: 2, resolved: 2, declined: 3, rejected: 3, cancelled: 4 }
+  return [...filteredProviderWorkItems.value].sort((a, b) => {
+    const statusDiff = (priority[String(a.status || '').toLowerCase()] ?? 99) - (priority[String(b.status || '').toLowerCase()] ?? 99)
+    if (statusDiff !== 0) return statusDiff
+    return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+  })
 })
 
 const providerCategory = computed(() => {
@@ -173,16 +260,9 @@ const providerCategory = computed(() => {
 })
 
 const providerServiceItems = computed(() => {
-  const matchedProvider = serviceProviders.find((item) => String(item.category || '').trim().toLowerCase() === providerCategory.value)
-  const services = (matchedProvider?.services || []).map((item) => ({
-    name: item.name,
-    price: item.price,
-    description: `${matchedProvider.category} service`,
-  }))
-
-  if (services.length > 0) {
-    return services
-  }
+  const categoryLabel = providerProfile.value?.category_name
+    || providerCategories.value.find((item) => Number(item.id) === Number(providerProfile.value?.category_id))?.name
+    || providerCategory.value
 
   const businessName = String(serviceForm.value.business_name || '').trim()
   const description = String(serviceForm.value.service_description || '').trim()
@@ -191,9 +271,9 @@ const providerServiceItems = computed(() => {
   }
 
   return [{
-    name: businessName || 'Custom Service',
+    name: businessName || `${categoryLabel || 'Service'} Provider`,
     price: 'Price on request',
-    description: description || 'Custom service description',
+    description: description || `${categoryLabel || 'General'} service`,
   }]
 })
 
@@ -205,8 +285,7 @@ const providerStats = computed(() => [
 ])
 
 const providerReviewsList = computed(() => {
-  if (authStore.token) return providerReviewsLive.value
-  return reviews
+  return providerReviewsLive.value
 })
 
 const providerNotifications = ['New booking from Priya Sharma', 'Cancellation request from Rahul Verma', '2 new review notifications']
@@ -225,21 +304,31 @@ async function loadProviderData() {
     if (!authStore.user && authStore.token) {
       await authStore.fetchMe()
     }
+    if (authStore.user) {
+      profileForm.value.full_name = authStore.user.full_name || authStore.user.name || ''
+      profileForm.value.phone = authStore.user.phone || ''
+      profileForm.value.email = authStore.user.email || ''
+    }
     if (authStore.token) {
       await authStore.ensureProviderProfile()
 
-      const [bookingsResult, statsResult, profileResult, categoriesResult] = await Promise.allSettled([
-        authStore.listBookings(),
+      const [bookingsResult, complaintsResult, statsResult, profileResult, categoriesResult] = await Promise.allSettled([
+        authStore.listBookings({ withMeta: true }),
+        authStore.listComplaints(),
         authStore.getProviderDashboardStats(),
         authStore.getMyProviderProfile(),
         authStore.listServiceCategories(),
       ])
 
       if (bookingsResult.status === 'fulfilled') {
-        backendBookings.value = bookingsResult.value
+        backendBookings.value = bookingsResult.value.items || []
+        providerBookingsMeta.value = bookingsResult.value.pagination || { total: backendBookings.value.length }
       }
       if (statsResult.status === 'fulfilled') {
         providerStatsLive.value = statsResult.value
+      }
+      if (complaintsResult.status === 'fulfilled') {
+        backendAssignedComplaints.value = complaintsResult.value || []
       }
       if (profileResult.status === 'fulfilled') {
         providerProfile.value = profileResult.value
@@ -277,11 +366,59 @@ async function loadProviderData() {
   }
 }
 
+async function saveProviderProfile() {
+  try {
+    await authStore.updateMe({
+      full_name: String(profileForm.value.full_name || '').trim(),
+      phone: String(profileForm.value.phone || '').trim(),
+    })
+    isEditingProfile.value = false
+    notify.success('Profile updated successfully')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to update profile')
+  }
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
   return date.toLocaleString()
+}
+
+function canAcceptBooking(booking) {
+  return bookingStatus(booking) === 'requested'
+}
+
+function canAcceptWorkItem(item) {
+  if (item.kind === 'booking') return canAcceptBooking(item.raw)
+  return String(item.status || '').toLowerCase() === 'assigned'
+}
+
+function canDeclineBooking(booking) {
+  const status = bookingStatus(booking)
+  return status === 'requested' || status === 'accepted'
+}
+
+function canDeclineWorkItem(item) {
+  if (item.kind === 'booking') return canDeclineBooking(item.raw)
+  return ['assigned', 'in_progress'].includes(String(item.status || '').toLowerCase())
+}
+
+function canCompleteBooking(booking) {
+  return bookingStatus(booking) === 'accepted'
+}
+
+function canCompleteWorkItem(item) {
+  if (item.kind === 'booking') return canCompleteBooking(item.raw)
+  return String(item.status || '').toLowerCase() === 'in_progress'
+}
+
+function markBookingAction(actionKey, isBusy) {
+  actionBookingIds.value = {
+    ...actionBookingIds.value,
+    [actionKey]: isBusy,
+  }
 }
 
 async function saveProviderService() {
@@ -342,31 +479,114 @@ async function removeAvailabilitySlot(slotId) {
 
 async function acceptProviderBooking(bookingId) {
   try {
+    markBookingAction(`booking-${bookingId}`, true)
     await authStore.acceptBooking(bookingId)
-    backendBookings.value = await authStore.listBookings()
+    const bookingsPayload = await authStore.listBookings({ withMeta: true })
+    backendBookings.value = bookingsPayload.items || []
+    providerBookingsMeta.value = bookingsPayload.pagination || { total: backendBookings.value.length }
+    providerStatsLive.value = await authStore.getProviderDashboardStats()
     notify.success('Booking accepted')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to accept booking')
+  } finally {
+    markBookingAction(`booking-${bookingId}`, false)
   }
 }
 
 async function declineProviderBooking(bookingId) {
   try {
+    markBookingAction(`booking-${bookingId}`, true)
     await authStore.declineBooking(bookingId)
-    backendBookings.value = await authStore.listBookings()
+    const bookingsPayload = await authStore.listBookings({ withMeta: true })
+    backendBookings.value = bookingsPayload.items || []
+    providerBookingsMeta.value = bookingsPayload.pagination || { total: backendBookings.value.length }
+    providerStatsLive.value = await authStore.getProviderDashboardStats()
     notify.success('Booking rejected')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to reject booking')
+  } finally {
+    markBookingAction(`booking-${bookingId}`, false)
   }
 }
 
 async function completeProviderBooking(bookingId) {
   try {
+    markBookingAction(`booking-${bookingId}`, true)
     await authStore.completeBooking(bookingId)
-    backendBookings.value = await authStore.listBookings()
+    const bookingsPayload = await authStore.listBookings({ withMeta: true })
+    backendBookings.value = bookingsPayload.items || []
+    providerBookingsMeta.value = bookingsPayload.pagination || { total: backendBookings.value.length }
+    providerStatsLive.value = await authStore.getProviderDashboardStats()
     notify.success('Booking marked complete')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to complete booking')
+  } finally {
+    markBookingAction(`booking-${bookingId}`, false)
+  }
+}
+
+async function refreshProviderWorkData() {
+  const [bookingsPayload, complaintsPayload] = await Promise.all([
+    authStore.listBookings({ withMeta: true }),
+    authStore.listComplaints(),
+  ])
+  backendBookings.value = bookingsPayload.items || []
+  providerBookingsMeta.value = bookingsPayload.pagination || { total: backendBookings.value.length }
+  backendAssignedComplaints.value = complaintsPayload || []
+  providerStatsLive.value = await authStore.getProviderDashboardStats()
+}
+
+async function acceptProviderWorkItem(item) {
+  try {
+    const actionKey = `${item.kind}-${item.id}`
+    markBookingAction(actionKey, true)
+    if (item.kind === 'booking') {
+      await authStore.acceptBooking(item.id)
+    } else {
+      await authStore.updateComplaintStatus(item.id, 'in_progress', 'Accepted by provider')
+    }
+    await refreshProviderWorkData()
+    notify.success('Request accepted')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to accept request')
+  } finally {
+    markBookingAction(`${item.kind}-${item.id}`, false)
+  }
+}
+
+async function declineProviderWorkItem(item) {
+  try {
+    const actionKey = `${item.kind}-${item.id}`
+    markBookingAction(actionKey, true)
+    if (item.kind === 'booking') {
+      await authStore.declineBooking(item.id)
+    } else {
+      await authStore.updateComplaintStatus(item.id, 'rejected', 'Rejected by provider')
+    }
+    await refreshProviderWorkData()
+    notify.success('Request rejected')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to reject request')
+  } finally {
+    markBookingAction(`${item.kind}-${item.id}`, false)
+  }
+}
+
+async function completeProviderWorkItem(item) {
+  try {
+    const actionKey = `${item.kind}-${item.id}`
+    markBookingAction(actionKey, true)
+    if (item.kind === 'booking') {
+      await authStore.completeBooking(item.id)
+    } else {
+      await authStore.updateComplaintStatus(item.id, 'resolved', 'Completed by provider')
+    }
+    await refreshProviderWorkData()
+    notify.success('Request completed')
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'Unable to complete request')
+  } finally {
+    markBookingAction(`${item.kind}-${item.id}`, false)
   }
 }
 

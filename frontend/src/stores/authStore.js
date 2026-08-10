@@ -46,8 +46,9 @@ export const useAuthStore = defineStore('auth', () => {
     return {
       ...rawUser,
       name: rawUser.name || rawUser.full_name || '',
-      flat: rawUser.flat || rawUser.unit_number || '',
+      flat: rawUser.flat || rawUser.flat_number || rawUser.unit_number || '',
       category: rawUser.category || rawUser.service_category || '',
+      profile_image_url: rawUser.profile_image_url || rawUser.avatar_url || '',
     }
   }
 
@@ -80,21 +81,35 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function normalizeRequestError(error) {
+    if (error instanceof Error) {
+      if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
+        return new Error('Unable to reach the backend service. Please check that the server is running.')
+      }
+      return error
+    }
+    return new Error('Unable to reach the backend service. Please check that the server is running.')
+  }
+
   async function authFetch(path, options = {}) {
     if (!token.value) {
       throw new Error('Please login first.')
     }
 
-    const response = await fetch(`${apiBase}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token.value}`,
-        ...(options.headers || {}),
-      },
-    })
+    try {
+      const response = await fetch(`${apiBase}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token.value}`,
+          ...(options.headers || {}),
+        },
+      })
 
-    return parseApiResponse(response)
+      return parseApiResponse(response)
+    } catch (error) {
+      throw normalizeRequestError(error)
+    }
   }
 
   async function login(selectedRole, email, password) {
@@ -103,17 +118,23 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('Please select a valid role.')
     }
 
-    const response = await fetch(`${apiBase}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: String(email || '').trim(),
-        password: String(password || ''),
-        role: backendRole,
-      }),
-    })
+    let payload
+    try {
+      const response = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: String(email || '').trim(),
+          password: String(password || ''),
+          role: backendRole,
+        }),
+      })
 
-    const payload = await parseApiResponse(response)
+      payload = await parseApiResponse(response)
+    } catch (error) {
+      throw normalizeRequestError(error)
+    }
+
     token.value = payload.data.token
     user.value = normalizeBackendUser(payload.data.user)
     role.value = selectedRole
@@ -150,20 +171,24 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('Please select a valid role.')
     }
 
-    const registerResponse = await fetch(`${apiBase}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        full_name: String(userData.name || '').trim(),
-        email: String(userData.email || '').trim(),
-        phone: String(userData.phone || '').trim(),
-        password: String(userData.password || ''),
-        role: backendRole,
-        society_id: 1,
-      }),
-    })
+    try {
+      const registerResponse = await fetch(`${apiBase}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: String(userData.name || '').trim(),
+          email: String(userData.email || '').trim(),
+          phone: String(userData.phone || '').trim(),
+          password: String(userData.password || ''),
+          role: backendRole,
+          society_id: 1,
+        }),
+      })
 
-    await parseApiResponse(registerResponse)
+      await parseApiResponse(registerResponse)
+    } catch (error) {
+      throw normalizeRequestError(error)
+    }
     const loginResult = await login(selectedRole, userData.email, userData.password)
 
     if (selectedRole === 'provider') {
@@ -195,15 +220,86 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value
   }
 
-  async function listEvents() {
-    const payload = await authFetch('/events', { method: 'GET' })
-    return payload?.data?.items || []
+  async function uploadProfileImage(imageFile) {
+    if (!token.value) {
+      throw new Error('Please login first.')
+    }
+    if (!imageFile) {
+      throw new Error('Please select an image file.')
+    }
+
+    const formData = new FormData()
+    formData.append('image', imageFile)
+
+    let payload
+    try {
+      const response = await fetch(`${apiBase}/users/me/profile-image`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token.value}`,
+        },
+        body: formData,
+      })
+      payload = await parseApiResponse(response)
+    } catch (error) {
+      throw normalizeRequestError(error)
+    }
+
+    user.value = normalizeBackendUser(payload.data)
+    persistSession()
+    return user.value
   }
 
-  async function listNotices(options = {}) {
-    const payload = await authFetch('/notices', { method: 'GET' })
+  function resolveListArgs(query = '', options = {}) {
+    if (typeof query === 'object' && query !== null) {
+      return { finalQuery: '', finalOptions: query }
+    }
+    return { finalQuery: query, finalOptions: options }
+  }
+
+  function buildQuerySuffix(query) {
+    if (!query) return ''
+
+    if (typeof query === 'string') {
+      const trimmed = query.trim()
+      if (!trimmed) return ''
+      return trimmed.startsWith('?') ? trimmed : `?${trimmed}`
+    }
+
+    if (typeof query === 'object') {
+      const params = new URLSearchParams()
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          params.append(key, String(value))
+        }
+      })
+      const qs = params.toString()
+      return qs ? `?${qs}` : ''
+    }
+
+    return ''
+  }
+
+  async function listEvents(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/events${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
+      return {
+        items,
+        pagination: payload?.data?.pagination || null,
+      }
+    }
+    return items
+  }
+
+  async function listNotices(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/notices${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -248,10 +344,12 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
-  async function listComplaints(options = {}) {
-    const payload = await authFetch('/complaints', { method: 'GET' })
+  async function listComplaints(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/complaints${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -281,10 +379,25 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function listProviders(options = {}) {
-    const payload = await authFetch('/providers', { method: 'GET' })
+  async function updateComplaintStatus(complaintId, status, comment) {
+    const payload = await authFetch(`/complaints/${complaintId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, comment }),
+    })
+    return payload?.data || null
+  }
+
+  async function getComplaintsAnalytics() {
+    const payload = await authFetch('/analytics/complaints', { method: 'GET' })
+    return payload?.data?.status_breakdown || {}
+  }
+
+  async function listProviders(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/providers${suffix}`, { method: 'GET' })
     const items = payload?.data?.items || []
-    if (options.withMeta) {
+    if (finalOptions.withMeta) {
       return {
         items,
         pagination: payload?.data?.pagination || null,
@@ -343,9 +456,18 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function listBookings() {
-    const payload = await authFetch('/bookings', { method: 'GET' })
-    return payload?.data?.items || []
+  async function listBookings(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/bookings${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return {
+        items,
+        pagination: payload?.data?.pagination || null,
+      }
+    }
+    return items
   }
 
   async function getMyProviderProfile() {
@@ -399,10 +521,223 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function listUsers(query = '') {
-    const suffix = query ? `?${query}` : ''
+  async function listUsers(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
     const payload = await authFetch(`/users${suffix}`, { method: 'GET' })
-    return payload?.data?.items || []
+    const items = payload?.data?.items || []
+
+    if (finalOptions.withMeta) {
+      return {
+        items,
+        pagination: payload?.data?.pagination || null,
+      }
+    }
+
+    return items
+  }
+
+  async function createUser(userPayload) {
+    const payload = await authFetch('/users', {
+      method: 'POST',
+      body: JSON.stringify(userPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function createProvider(providerPayload) {
+    const payload = await authFetch('/providers', {
+      method: 'POST',
+      body: JSON.stringify(providerPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listVisitors(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/visitors${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function getVisitorsToday() {
+    const payload = await authFetch('/visitors/today', { method: 'GET' })
+    return payload?.data || {}
+  }
+
+  async function createVisitor(visitorPayload) {
+    const payload = await authFetch('/visitors', {
+      method: 'POST',
+      body: JSON.stringify(visitorPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function approveVisitor(entryId) {
+    const payload = await authFetch(`/visitors/${entryId}/approve`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function rejectVisitor(entryId) {
+    const payload = await authFetch(`/visitors/${entryId}/reject`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function recordVisitorExit(entryId) {
+    const payload = await authFetch(`/visitors/${entryId}/exit`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function listPatrolLogs(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/patrol-logs${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createPatrolLog(logPayload) {
+    const payload = await authFetch('/patrol-logs', {
+      method: 'POST',
+      body: JSON.stringify(logPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listEmergencyAlerts(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/emergency-alerts${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createEmergencyAlert(alertPayload) {
+    const payload = await authFetch('/emergency-alerts', {
+      method: 'POST',
+      body: JSON.stringify(alertPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listIncidentReports(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/incident-reports${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createIncidentReport(reportPayload) {
+    const payload = await authFetch('/incident-reports', {
+      method: 'POST',
+      body: JSON.stringify(reportPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listFamilyMembers(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/family-members${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createFamilyMember(memberPayload) {
+    const payload = await authFetch('/family-members', {
+      method: 'POST',
+      body: JSON.stringify(memberPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function listMaintenanceBills(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/maintenance-bills${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function payMaintenanceBill(billId) {
+    const payload = await authFetch(`/maintenance-bills/${billId}/pay`, { method: 'PUT' })
+    return payload?.data || null
+  }
+
+  async function listSystemLogs(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/system-logs${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function listTenants(query = '', options = {}) {
+    const { finalQuery, finalOptions } = resolveListArgs(query, options)
+    const suffix = buildQuerySuffix(finalQuery)
+    const payload = await authFetch(`/tenants${suffix}`, { method: 'GET' })
+    const items = payload?.data?.items || []
+    if (finalOptions.withMeta) {
+      return { items, pagination: payload?.data?.pagination || null }
+    }
+    return items
+  }
+
+  async function createTenant(tenantPayload) {
+    const payload = await authFetch('/tenants', {
+      method: 'POST',
+      body: JSON.stringify(tenantPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function updateTenant(tenantId, tenantPayload) {
+    const payload = await authFetch(`/tenants/${tenantId}`, {
+      method: 'PUT',
+      body: JSON.stringify(tenantPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function getSettings() {
+    const payload = await authFetch('/settings', { method: 'GET' })
+    return payload?.data || {}
+  }
+
+  async function updateSettings(settingsPayload) {
+    const payload = await authFetch('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settingsPayload || {}),
+    })
+    return payload?.data || {}
+  }
+
+  async function getSecurityDashboardStats() {
+    const payload = await authFetch('/analytics/dashboard/security', { method: 'GET' })
+    return payload?.data || {}
   }
 
   async function getAdminDashboardStats() {
@@ -430,18 +765,48 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data?.status_breakdown || {}
   }
 
-  async function forgotPassword(emailOrPhone, newPassword, phone = '') {
-    const response = await fetch(`${apiBase}/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: String(emailOrPhone || '').trim(),
-        phone: String(phone || '').trim(),
-        new_password: String(newPassword || ''),
-      }),
+  async function getMonthlyReport() {
+    const payload = await authFetch('/reports/monthly', { method: 'GET' })
+    return payload?.data || {}
+  }
+
+  async function exportMonthlyReportCsv() {
+    if (!token.value) {
+      throw new Error('Please login first.')
+    }
+
+    const response = await fetch(`${apiBase}/reports/monthly/export.csv`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+      },
     })
 
-    await parseApiResponse(response)
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      const message = payload?.error?.message || payload?.message || `Request failed with status ${response.status}`
+      throw new Error(message)
+    }
+
+    return response.blob()
+  }
+
+  async function forgotPassword(emailOrPhone, newPassword, phone = '') {
+    try {
+      const response = await fetch(`${apiBase}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: String(emailOrPhone || '').trim(),
+          phone: String(phone || '').trim(),
+          new_password: String(newPassword || ''),
+        }),
+      })
+
+      await parseApiResponse(response)
+    } catch (error) {
+      throw normalizeRequestError(error)
+    }
     return true
   }
 
@@ -527,6 +892,7 @@ export const useAuthStore = defineStore('auth', () => {
     forgotPassword,
     fetchMe,
     updateMe,
+    uploadProfileImage,
     listEvents,
     listNotices,
     createNotice,
@@ -539,6 +905,8 @@ export const useAuthStore = defineStore('auth', () => {
     getComplaint,
     createComplaint,
     assignComplaint,
+    updateComplaintStatus,
+    getComplaintsAnalytics,
     listProviders,
     listServiceCategories,
     getProvider,
@@ -554,11 +922,38 @@ export const useAuthStore = defineStore('auth', () => {
     declineBooking,
     completeBooking,
     listUsers,
+    createUser,
+    createProvider,
+    listVisitors,
+    getVisitorsToday,
+    createVisitor,
+    approveVisitor,
+    rejectVisitor,
+    recordVisitorExit,
+    listPatrolLogs,
+    createPatrolLog,
+    listEmergencyAlerts,
+    createEmergencyAlert,
+    listIncidentReports,
+    createIncidentReport,
+    listFamilyMembers,
+    createFamilyMember,
+    listMaintenanceBills,
+    payMaintenanceBill,
+    listSystemLogs,
+    listTenants,
+    createTenant,
+    updateTenant,
+    getSettings,
+    updateSettings,
+    getSecurityDashboardStats,
     getAdminDashboardStats,
     getProviderDashboardStats,
     getProviderEarnings,
     getProviderReviews,
     getBookingsAnalytics,
+    getMonthlyReport,
+    exportMonthlyReportCsv,
     aiStatus,
     aiGenerateNotice,
     aiTranslateAnnouncement,
