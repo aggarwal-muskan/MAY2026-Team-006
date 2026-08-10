@@ -121,6 +121,10 @@ def register_event(event_id):
     if not event:
         return fail("Event not found", "NOT_FOUND", 404)
 
+    # D-07 fix: a cancelled event must stop accepting registrations.
+    if str(event.status).lower() == "cancelled":
+        return fail("This event has been cancelled", "EVENT_CANCELLED", 409)
+
     existing = EventRegistration.query.filter_by(event_id=event_id, user_id=user.id).first()
     if existing:
         return fail("Already registered", "ALREADY_REGISTERED", 409)
