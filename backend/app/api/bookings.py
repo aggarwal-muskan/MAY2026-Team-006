@@ -11,8 +11,18 @@ from app.services.query_service import paginate_query
 
 bookings_bp = Blueprint("bookings", __name__, url_prefix="/bookings")
 
+# D-10 / D-11 fix: terminal states cannot be re-opened, and only a pending
+# request can be accepted or declined.
+TERMINAL_STATUSES = {"completed", "cancelled", "declined"}
+ACCEPTABLE_STATUSES = {"requested"}
 
-TERMINAL_BOOKING_STATUSES = {"declined", "cancelled", "completed"}
+
+def _invalid_state(action, status):
+    return fail(
+        f"Cannot {action} a booking in state '{status}'",
+        "INVALID_STATE",
+        409,
+    )
 
 
 @bookings_bp.get("")
@@ -47,6 +57,11 @@ def get_booking(booking_id):
         return fail("Booking not found", "NOT_FOUND", 404)
 
     provider = db.session.get(ServiceProvider, booking.provider_id)
+    if not provider:
+        # D-09 fix: a dangling provider reference used to raise AttributeError and
+        # return a 500 with no usable error envelope.
+        return fail("Booking not found", "NOT_FOUND", 404)
+
     if user.role != ROLE_ADMIN and user.id not in [booking.resident_user_id, provider.user_id]:
         return fail("Forbidden", "FORBIDDEN", 403)
 
@@ -64,6 +79,12 @@ def create_booking():
     if missing:
         return fail(f"Missing required fields: {', '.join(missing)}", "VALIDATION_ERROR", 400)
 
+    # D-08 fix: the provider reference was never resolved, so a booking could be
+    # created against a provider id that does not exist.
+    provider = db.session.get(ServiceProvider, data["provider_id"])
+    if not provider:
+        return fail("Provider not found", "NOT_FOUND", 404)
+
     slot = None
     if data.get("slot_id"):
         slot = db.session.get(ProviderSlot, data["slot_id"])
@@ -72,7 +93,7 @@ def create_booking():
 
     booking = ServiceBooking(
         resident_user_id=user.id,
-        provider_id=data["provider_id"],
+        provider_id=provider.id,
         slot_id=data.get("slot_id"),
         booking_status="requested",
         request_notes=data.get("request_notes"),
@@ -98,8 +119,8 @@ def accept_booking(booking_id):
     if not provider or provider.user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
 
-    if booking.booking_status != "requested":
-        return fail("Only requested bookings can be accepted", "INVALID_STATUS_TRANSITION", 409)
+    if booking.booking_status not in ACCEPTABLE_STATUSES:
+        return _invalid_state("accept", booking.booking_status)
 
     booking.booking_status = "accepted"
     db.session.commit()
@@ -119,7 +140,7 @@ def decline_booking(booking_id):
         return fail("Forbidden", "FORBIDDEN", 403)
 
     if booking.booking_status not in {"requested", "accepted"}:
-        return fail("Only requested or accepted bookings can be declined", "INVALID_STATUS_TRANSITION", 409)
+        return _invalid_state("decline", booking.booking_status)
 
     booking.booking_status = "declined"
     if booking.slot_id:
@@ -144,7 +165,7 @@ def complete_booking(booking_id):
         return fail("Forbidden", "FORBIDDEN", 403)
 
     if booking.booking_status != "accepted":
-        return fail("Only accepted bookings can be completed", "INVALID_STATUS_TRANSITION", 409)
+        return _invalid_state("complete", booking.booking_status)
 
     booking.booking_status = "completed"
     db.session.commit()
@@ -162,8 +183,8 @@ def cancel_booking(booking_id):
     if actor.role != ROLE_ADMIN and booking.resident_user_id != actor.id:
         return fail("Forbidden", "FORBIDDEN", 403)
 
-    if booking.booking_status in TERMINAL_BOOKING_STATUSES:
-        return fail("This booking can no longer be cancelled", "INVALID_STATUS_TRANSITION", 409)
+    if booking.booking_status in TERMINAL_STATUSES:
+        return _invalid_state("cancel", booking.booking_status)
 
     booking.booking_status = "cancelled"
     if booking.slot_id:

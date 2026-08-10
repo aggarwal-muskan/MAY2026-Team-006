@@ -98,6 +98,11 @@ def exit_visitor(entry_id):
     if not entry:
         return fail("Visitor entry not found", "NOT_FOUND", 404)
 
+    # D-12 fix: a second exit call used to overwrite the original exit timestamp,
+    # destroying the gate audit trail.
+    if entry.exit_time is not None:
+        return fail("Exit already recorded for this visitor", "ALREADY_EXITED", 409)
+
     entry.exit_time = datetime.now(UTC)
 
     db.session.commit()

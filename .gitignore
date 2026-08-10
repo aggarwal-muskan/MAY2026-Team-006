@@ -35,3 +35,12 @@ backend/instance/
 # Local environment files
 .env
 backend/.env
+.env.*
+backend/.env.*
+*.coverage*
+
+# Exclude docs and reports from git commits
+docs/
+*.md
+!README.md
+

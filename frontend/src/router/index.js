@@ -75,6 +75,7 @@ const routes = [
   { path: '/admin/events', name: 'AdminEvents', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'events' } },
   { path: '/admin/events/create', name: 'CreateEvent', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'create-event' } },
   { path: '/admin/analytics', name: 'Analytics', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'analytics' } },
+  { path: '/admin/ai-tools', name: 'AdminAiTools', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'ai-tools' } },
   { path: '/admin/settings', name: 'AdminSettings', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'settings' } },
   { path: '/admin/roles', name: 'RolesPermissions', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'roles' } },
   { path: '/admin/maintenance-fees', name: 'MaintenanceFees', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'maintenance-fees' } },

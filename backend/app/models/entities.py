@@ -147,6 +147,9 @@ class Notice(db.Model, TimestampMixin, SerializerMixin):
     priority = db.Column(db.String(20), nullable=False, default="normal")
     publish_at = db.Column(db.DateTime, nullable=False)
     expires_at = db.Column(db.DateTime)
+    # JSON string mapping language name -> translated body, e.g. {"Hindi": "...", "Telugu": "..."}.
+    # Primary/original text stays in `body` (English). Nullable for backward compatibility.
+    translations = db.Column(db.Text)
 
 
 class Event(db.Model, TimestampMixin, SerializerMixin):

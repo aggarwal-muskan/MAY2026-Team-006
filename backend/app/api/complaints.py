@@ -14,6 +14,7 @@ from app.services.query_service import paginate_query
 complaints_bp = Blueprint("complaints", __name__, url_prefix="/complaints")
 
 ALLOWED_COMPLAINT_STATUSES = {"open", "in_progress", "resolved", "closed"}
+ALLOWED_PRIORITIES = {"low", "medium", "high", "urgent"}
 
 
 @complaints_bp.get("")
@@ -68,13 +69,22 @@ def create_complaint():
     if missing:
         return fail(f"Missing required fields: {', '.join(missing)}", "VALIDATION_ERROR", 400)
 
+    # D-04 fix: priority is a closed vocabulary, not free text.
+    priority = str(data["priority"]).strip().lower()
+    if priority not in ALLOWED_PRIORITIES:
+        return fail(
+            f"Invalid priority '{data['priority']}'. Allowed values: {', '.join(sorted(ALLOWED_PRIORITIES))}",
+            "VALIDATION_ERROR",
+            400,
+        )
+
     complaint = Complaint(
         society_id=user.society_id,
         raised_by_user_id=user.id,
         subject=data["subject"],
         description=data["description"],
         category=data["category"],
-        priority=data["priority"],
+        priority=priority,
         status="open",
     )
     db.session.add(complaint)

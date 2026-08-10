@@ -592,6 +592,76 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
+  async function aiStatus() {
+    const payload = await authFetch('/ai/status', { method: 'GET' })
+    return payload?.data || {}
+  }
+
+  async function aiGenerateNotice(noticePayload) {
+    const payload = await authFetch('/ai/notices/generate', {
+      method: 'POST',
+      body: JSON.stringify(noticePayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function aiTranslateAnnouncement(text, languages = ['English', 'Hindi', 'Telugu']) {
+    const payload = await authFetch('/ai/announcements/translate', {
+      method: 'POST',
+      body: JSON.stringify({ text, languages }),
+    })
+    return payload?.data || null
+  }
+
+  async function aiPlanEvent(eventPayload) {
+    const payload = await authFetch('/ai/events/plan', {
+      method: 'POST',
+      body: JSON.stringify(eventPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function aiAnalyticsInsights(stats = null) {
+    const payload = await authFetch('/ai/analytics/insights', {
+      method: 'POST',
+      body: JSON.stringify(stats ? { stats } : {}),
+    })
+    return payload?.data || null
+  }
+
+  async function aiClassifyComplaint(complaintPayload) {
+    const payload = await authFetch('/ai/complaints/classify', {
+      method: 'POST',
+      body: JSON.stringify(complaintPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function aiMeetingMinutes(meetingPayload) {
+    const payload = await authFetch('/ai/meetings/minutes', {
+      method: 'POST',
+      body: JSON.stringify(meetingPayload || {}),
+    })
+    return payload?.data || null
+  }
+
+  async function aiSummarizeAllNotices(notices = null) {
+    const body = Array.isArray(notices) && notices.length ? { notices } : {}
+    const payload = await authFetch('/ai/notices/summarize-all', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+    return payload?.data || null
+  }
+
+  async function aiMaintenanceAssist(assistPayload) {
+    const payload = await authFetch('/ai/maintenance/assist', {
+      method: 'POST',
+      body: JSON.stringify(assistPayload || {}),
+    })
+    return payload?.data || null
+  }
+
   return {
     user,
     role,
@@ -642,5 +712,14 @@ export const useAuthStore = defineStore('auth', () => {
     getBookingsAnalytics,
     getMonthlyReport,
     exportMonthlyReportCsv,
+    aiStatus,
+    aiGenerateNotice,
+    aiTranslateAnnouncement,
+    aiPlanEvent,
+    aiAnalyticsInsights,
+    aiClassifyComplaint,
+    aiMeetingMinutes,
+    aiSummarizeAllNotices,
+    aiMaintenanceAssist,
   }
 })

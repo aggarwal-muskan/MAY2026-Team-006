@@ -62,20 +62,47 @@
     </template>
 
     <template v-else-if="page === 'notices'">
-      <div class="screen-header">
-        <h1>Notice Board</h1>
-        <p>Read society announcements, maintenance updates, and important circulars.</p>
+      <div class="screen-header row-between">
+        <div>
+          <h1>Notice Board</h1>
+          <p>Read society announcements, maintenance updates, and important circulars.</p>
+        </div>
+        <button
+          class="btn btn-secondary"
+          type="button"
+          :disabled="isAiBusy('notices-summarize-all') || !residentNotices.length"
+          @click.stop="summarizeAllNotices"
+        >
+          {{ isAiBusy('notices-summarize-all') ? 'Summarizing…' : 'AI Summarize All' }}
+        </button>
       </div>
       <div class="chip-row">
-        <span v-for="chip in ['All', 'Maintenance', 'Events', 'Rules']" :key="chip" class="chip">{{ chip }}</span>
+        <span class="chip-label">Language:</span>
+        <button
+          v-for="lang in noticeLanguages"
+          :key="lang"
+          type="button"
+          class="chip"
+          :class="{ 'chip-active': selectedNoticeLanguage === lang }"
+          @click="selectedNoticeLanguage = lang"
+        >
+          {{ noticeLanguageLabels[lang] }}
+        </button>
+      </div>
+      <div v-if="allNoticesSummary" class="card ai-summary-card">
+        <h3 class="card-title">{{ allNoticesSummary.headline || 'Notices summary' }}</h3>
+        <pre class="ai-output">{{ formatAllNoticesSummary(allNoticesSummary) }}</pre>
       </div>
       <div class="stack">
-        <article v-for="notice in residentNotices" :key="notice.id" class="card notice-card">
+        <article v-for="notice in residentNotices" :key="`notice-${notice.id}`" class="card notice-card">
           <div class="card-header no-border">
             <strong>{{ notice.title }}</strong>
             <span class="badge" :class="badgeClass(notice.priority)">{{ notice.priority }}</span>
           </div>
-          <p>{{ notice.content || notice.body }}</p>
+          <p>{{ noticeBodyText(notice) }}</p>
+          <small v-if="!noticeHasTranslation(notice)" class="muted">
+            {{ noticeLanguageLabels[selectedNoticeLanguage] }} translation not available — showing original.
+          </small>
           <small>{{ notice.date || notice.publish_at || '-' }} · {{ notice.category || notice.notice_type || 'Notice' }}</small>
         </article>
       </div>
@@ -128,10 +155,12 @@
       </div>
       <form class="card form-card" @submit.prevent="submitComplaint">
         <div class="form-grid two-col">
-          <label class="form-group"><span class="form-label">Category</span><select v-model="complaintForm.category"><option>Plumbing</option><option>Electrical</option><option>Maintenance</option><option>Security</option></select></label>
-          <label class="form-group"><span class="form-label">Title</span><input v-model="complaintForm.title" type="text" placeholder="Short issue title" /></label>
+          <label class="form-group"><span class="form-label">Category</span><select v-model="complaintForm.category"><option>Plumbing</option><option>Electrical</option><option>Maintenance</option><option>Security</option><option>Water Supply</option><option>Lift</option><option>Parking</option><option>Cleaning</option><option>Garden</option><option>Noise</option><option>Other</option></select></label>
+          <label class="form-group"><span class="form-label">Priority Assessment</span><input type="text" value="Pending Admin AI Assessment" disabled class="disabled-input" /></label>
         </div>
-        <label class="form-group"><span class="form-label">Description</span><textarea v-model="complaintForm.description" rows="5" placeholder="Describe the issue"></textarea></label>
+        <label class="form-group"><span class="form-label">Title</span><input v-model="complaintForm.title" type="text" placeholder="Short issue title" /></label>
+        <label class="form-group"><span class="form-label">Description</span><textarea v-model="complaintForm.description" rows="5" placeholder="Describe the issue in detail"></textarea></label>
+        <p class="ai-hint">ℹ️ Complaint priority and category will be objectively assessed & classified by Admin AI upon review.</p>
         <label class="form-group"><span class="form-label">Upload Image</span><input type="file" /></label>
         <button class="btn btn-primary">Submit Complaint</button>
       </form>
@@ -363,8 +392,14 @@
         <p>Track monthly charges and payment status.</p>
       </div>
       <div class="stack">
-        <article v-for="bill in maintenanceBills" :key="bill.id" class="card bill-card">
-          <div><strong>{{ bill.month }}</strong><p>Due {{ bill.dueDate }}</p></div>
+        <article v-for="bill in maintenanceBills" :key="`bill-${bill.id}`" class="card bill-card">
+          <div>
+            <strong>{{ bill.month }}</strong>
+            <p>Due {{ bill.dueDate }}</p>
+            <ul v-if="bill.line_items?.length" class="bill-lines">
+              <li v-for="item in bill.line_items" :key="item.label">{{ item.label }}: {{ currency(item.amount) }}</li>
+            </ul>
+          </div>
           <div class="bill-meta"><strong>{{ currency(bill.amount) }}</strong><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span></div>
         </article>
       </div>
@@ -428,7 +463,47 @@ function matchesSearch(values, query) {
     .map((value) => String(value || '').toLowerCase())
     .some((value) => value.includes(query))
 }
+const complaintForm = reactive({ category: 'Plumbing', priority: 'Medium', title: '', description: '' })
+const aiBusyKey = ref(null)
+const allNoticesSummary = ref(null)
+const complaintAiSuggestion = ref(null)
+const noticeLanguages = ['English', 'Hindi', 'Telugu']
+const noticeLanguageLabels = { English: 'English', Hindi: 'हिंदी', Telugu: 'తెలుగు' }
+const selectedNoticeLanguage = ref('English')
+const amenityForm = reactive({ category_id: '', date: '', time_slot: '', purpose: '' })
+const complaintForm = reactive({ category: 'Plumbing', priority: 'Medium', title: '', description: '' })
+const aiBusyKey = ref(null)
+const allNoticesSummary = ref(null)
+const complaintAiSuggestion = ref(null)
+const noticeLanguages = ['English', 'Hindi', 'Telugu']
+const noticeLanguageLabels = { English: 'English', Hindi: 'हिंदी', Telugu: 'తెలుగు' }
+const selectedNoticeLanguage = ref('English')
+const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
 
+function matchesSearch(values, query) {
+  if (!query) return true
+  return values
+    .map((value) => String(value || '').toLowerCase())
+    .some((value) => value.includes(query))
+}
+
+function isAiBusy(key) {
+  return aiBusyKey.value === key
+}
+
+async function withAi(key, task) {
+  if (aiBusyKey.value === key) return
+  aiBusyKey.value = key
+  try {
+    await task()
+  } catch (error) {
+    notify.error(error instanceof Error ? error.message : 'AI request failed')
+  } finally {
+    if (aiBusyKey.value === key) {
+      aiBusyKey.value = null
+    }
+  }
+}
 const residentEvents = computed(() => {
   const list = authStore.token ? backendEvents.value : mockEvents
   const query = globalSearchQuery.value
@@ -567,8 +642,6 @@ const selectedAmenityProviderName = computed(() => {
 const currentUserDisplayName = computed(() => authStore.user?.name || 'Resident')
 const currentUserInitials = computed(() => authStore.userInitials)
 
-const complaintForm = reactive({ category: 'Plumbing', title: '', description: '' })
-
 const dashboardStats = computed(() => [
   { label: 'My Complaints', value: residentComplaints.value.length },
   { label: 'My Bookings', value: residentBookings.value.length },
@@ -630,15 +703,79 @@ async function submitComplaint() {
       subject: String(complaintForm.title || '').trim(),
       description: String(complaintForm.description || '').trim(),
       category: complaintForm.category,
-      priority: 'medium',
+      priority: String(complaintForm.priority || 'medium').toLowerCase(),
     })
     notify.success('Complaint submitted successfully')
     complaintForm.title = ''
     complaintForm.description = ''
+    complaintAiSuggestion.value = null
     backendComplaints.value = await authStore.listComplaints()
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Failed to submit complaint')
   }
+}
+
+function noticeBodyText(notice) {
+  const lang = selectedNoticeLanguage.value
+  const original = notice.content || notice.body || ''
+  if (lang === 'English') return original
+  const translations = notice.translations
+  if (translations && typeof translations === 'object' && translations[lang]) {
+    return translations[lang]
+  }
+  return original // fall back to the original text when no translation exists
+}
+
+function noticeHasTranslation(notice) {
+  const lang = selectedNoticeLanguage.value
+  if (lang === 'English') return true
+  const t = notice.translations
+  return !!(t && typeof t === 'object' && t[lang])
+}
+
+function formatAllNoticesSummary(summary) {
+  if (!summary) return ''
+  if (summary.digest_markdown) return summary.digest_markdown
+  const groups = Array.isArray(summary.groups) ? summary.groups : []
+  return groups
+    .map((g) => {
+      const items = Array.isArray(g.items) ? g.items.map((i) => `  • ${i}`).join('\n') : ''
+      return `${g.theme || 'Notices'}:\n${items}`
+    })
+    .join('\n\n')
+}
+
+
+async function summarizeAllNotices() {
+  await withAi('notices-summarize-all', async () => {
+    const notices = (residentNotices.value || []).map((n) => ({
+      title: n.title,
+      body: n.body || n.content || '',
+    }))
+    if (!notices.length) {
+      notify.error('No notices to summarize')
+      return
+    }
+    allNoticesSummary.value = await authStore.aiSummarizeAllNotices(notices)
+    notify.success('All notices summarized')
+  })
+}
+
+async function classifyComplaintWithAI() {
+  await withAi('complaint-classify', async () => {
+    if (!String(complaintForm.description || '').trim()) {
+      notify.error('Enter a description first')
+      return
+    }
+    const result = await authStore.aiClassifyComplaint({
+      subject: complaintForm.title,
+      description: complaintForm.description,
+    })
+    if (result?.category) complaintForm.category = result.category
+    if (result?.priority) complaintForm.priority = result.priority
+    complaintAiSuggestion.value = result
+    notify.success('AI classification applied')
+  })
 }
 
 function formatEventMeta(event) {
@@ -888,8 +1025,10 @@ watch(
 .compact { padding: var(--space-3) var(--space-5); }
 .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .action-card { display: grid; gap: var(--space-3); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-gray-50); color: inherit; }
-.chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.chip { padding: 6px 12px; border-radius: var(--radius-full); background: var(--color-gray-100); color: var(--color-text-secondary); font-size: var(--text-xs); }
+.chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.chip-label { font-size: var(--text-xs); color: var(--color-text-secondary); font-weight: 600; }
+.chip { padding: 6px 12px; border-radius: var(--radius-full); background: var(--color-gray-100); color: var(--color-text-secondary); font-size: var(--text-xs); border: 1px solid transparent; cursor: pointer; }
+.chip-active { background: var(--color-primary, #2563eb); color: #fff; border-color: transparent; }
 .stack { display: grid; gap: var(--space-4); }
 .tile-visual, .service-icon { width: 64px; height: 64px; display: grid; place-items: center; border-radius: var(--radius-lg); background: var(--color-primary-50); color: var(--color-primary); font-weight: var(--font-semibold); }
 .provider-top { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
@@ -914,6 +1053,22 @@ watch(
 .faq-item:last-child { border-bottom: none; }
 .bill-meta { display: grid; justify-items: end; gap: var(--space-2); }
 .align-start { align-items: start; }
+.ai-panel { display: grid; gap: var(--space-3); }
+.ai-output {
+  white-space: pre-wrap;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-border);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.row-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.bill-lines { margin: var(--space-2) 0 0; padding-left: 1.1rem; color: var(--color-text-secondary); font-size: var(--text-sm); }
+.muted { color: var(--color-text-secondary); }
+.ai-suggestion { color: var(--color-text-secondary); font-size: var(--text-sm); }
 @media (max-width: 960px) {
   .stat-grid, .content-grid.two-col, .card-grid.three-col { grid-template-columns: 1fr; }
   .screen-hero, .screen-header.row-between, .provider-top { flex-direction: column; align-items: flex-start; }
