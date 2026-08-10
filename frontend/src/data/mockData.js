@@ -154,12 +154,90 @@ export const facilities = [
 
 // ── Maintenance Bills ──
 export const maintenanceBills = [
-  { id: 1, month: 'May 2024', amount: 5500, dueDate: '2024-05-15', status: 'Paid', paidDate: '2024-05-12' },
-  { id: 2, month: 'April 2024', amount: 5500, dueDate: '2024-04-15', status: 'Paid', paidDate: '2024-04-10' },
-  { id: 3, month: 'March 2024', amount: 5500, dueDate: '2024-03-15', status: 'Paid', paidDate: '2024-03-14' },
-  { id: 4, month: 'June 2024', amount: 5500, dueDate: '2024-06-15', status: 'Unpaid', paidDate: null },
-  { id: 5, month: 'February 2024', amount: 5000, dueDate: '2024-02-15', status: 'Paid', paidDate: '2024-02-13' },
-  { id: 6, month: 'January 2024', amount: 5000, dueDate: '2024-01-15', status: 'Paid', paidDate: '2024-01-11' },
+  {
+    id: 1,
+    month: 'May 2024',
+    amount: 3250,
+    dueDate: '2024-05-15',
+    status: 'Paid',
+    paidDate: '2024-05-12',
+    line_items: [
+      { label: 'Maintenance', amount: 2500 },
+      { label: 'Water', amount: 300 },
+      { label: 'Electricity', amount: 450 },
+      { label: 'Penalty', amount: 0 },
+    ],
+  },
+  {
+    id: 2,
+    month: 'April 2024',
+    amount: 3250,
+    dueDate: '2024-04-15',
+    status: 'Paid',
+    paidDate: '2024-04-10',
+    line_items: [
+      { label: 'Maintenance', amount: 2500 },
+      { label: 'Water', amount: 300 },
+      { label: 'Electricity', amount: 450 },
+      { label: 'Penalty', amount: 0 },
+    ],
+  },
+  {
+    id: 3,
+    month: 'March 2024',
+    amount: 3250,
+    dueDate: '2024-03-15',
+    status: 'Paid',
+    paidDate: '2024-03-14',
+    line_items: [
+      { label: 'Maintenance', amount: 2500 },
+      { label: 'Water', amount: 300 },
+      { label: 'Electricity', amount: 450 },
+      { label: 'Penalty', amount: 0 },
+    ],
+  },
+  {
+    id: 4,
+    month: 'June 2024',
+    amount: 3450,
+    dueDate: '2024-06-15',
+    status: 'Unpaid',
+    paidDate: null,
+    line_items: [
+      { label: 'Maintenance', amount: 2500 },
+      { label: 'Water', amount: 300 },
+      { label: 'Electricity', amount: 450 },
+      { label: 'Penalty', amount: 200 },
+    ],
+  },
+  {
+    id: 5,
+    month: 'February 2024',
+    amount: 3000,
+    dueDate: '2024-02-15',
+    status: 'Paid',
+    paidDate: '2024-02-13',
+    line_items: [
+      { label: 'Maintenance', amount: 2300 },
+      { label: 'Water', amount: 300 },
+      { label: 'Electricity', amount: 400 },
+      { label: 'Penalty', amount: 0 },
+    ],
+  },
+  {
+    id: 6,
+    month: 'January 2024',
+    amount: 3000,
+    dueDate: '2024-01-15',
+    status: 'Paid',
+    paidDate: '2024-01-11',
+    line_items: [
+      { label: 'Maintenance', amount: 2300 },
+      { label: 'Water', amount: 300 },
+      { label: 'Electricity', amount: 400 },
+      { label: 'Penalty', amount: 0 },
+    ],
+  },
 ]
 
 // ── Service Provider Bookings ──
