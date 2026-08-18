@@ -22,27 +22,6 @@
         </nav>
 
         <div class="header-actions">
-          <button
-            type="button"
-            class="theme-toggle"
-            :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-            @click="toggleTheme"
-          >
-            <svg v-if="theme === 'dark'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2"></path>
-              <path d="M12 20v2"></path>
-              <path d="m4.93 4.93 1.41 1.41"></path>
-              <path d="m17.66 17.66 1.41 1.41"></path>
-              <path d="M2 12h2"></path>
-              <path d="M20 12h2"></path>
-              <path d="m6.34 17.66-1.41 1.41"></path>
-              <path d="m19.07 4.93-1.41 1.41"></path>
-            </svg>
-            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-            </svg>
-          </button>
           <router-link to="/login" class="btn btn-outline btn-sm">Login</router-link>
           <router-link to="/register" class="btn btn-primary btn-sm">Register</router-link>
           <button class="mobile-toggle" @click="mobileMenuOpen = !mobileMenuOpen">
@@ -127,26 +106,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { ref } from 'vue'
 
 const mobileMenuOpen = ref(false)
-const theme = ref('light')
-
-function applyTheme(nextTheme) {
-  theme.value = nextTheme
-  document.documentElement.dataset.theme = nextTheme
-  localStorage.setItem('socioneed-theme', nextTheme)
-}
-
-function toggleTheme() {
-  applyTheme(theme.value === 'dark' ? 'light' : 'dark')
-}
-
-onMounted(() => {
-  const savedTheme = localStorage.getItem('socioneed-theme')
-  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'))
-})
 </script>
 
 <style scoped>

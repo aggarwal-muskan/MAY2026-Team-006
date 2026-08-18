@@ -206,6 +206,15 @@
   </div>
 </template>
 
+<style scoped>
+.landing-page .btn-primary,
+.landing-page .btn-primary:hover,
+.landing-page .btn-primary:focus-visible,
+.landing-page .btn-primary:active {
+  color: #ffffff !important;
+}
+</style>
+
 <script setup>
 import { committeeMembers, facilities } from '@/data/mockData'
 

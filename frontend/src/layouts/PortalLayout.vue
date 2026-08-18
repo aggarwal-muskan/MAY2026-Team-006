@@ -76,15 +76,6 @@
               <polyline points="6 17 11 12 6 7"></polyline>
             </svg>
           </button>
-          <div class="search-box">
-            <span class="search-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-              </svg>
-            </span>
-            <input type="text" placeholder="Search anything..." v-model="searchQuery" @keydown.enter.prevent="submitSearch" />
-          </div>
         </div>
         <div class="topbar-right">
           <button class="topbar-icon-btn" @click="$router.push(notifRoute)">
@@ -126,7 +117,6 @@ const authStore = useAuthStore()
 
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
-const searchQuery = ref('')
 const residentBadgeCounts = ref({ complaints: 0, notices: 0 })
 const providerBadgeCounts = ref({ bookings: 0 })
 
@@ -155,14 +145,6 @@ function isActive(path) {
 function handleLogout() {
   authStore.logout()
   router.push('/login')
-}
-
-function submitSearch() {
-  const trimmed = String(searchQuery.value || '').trim()
-  router.push({
-    path: route.path,
-    query: trimmed ? { ...route.query, q: trimmed } : { ...route.query, q: undefined },
-  })
 }
 
 async function loadResidentBadgeCounts() {
@@ -291,13 +273,6 @@ watch(
   }
 )
 
-watch(
-  () => route.query.q,
-  (value) => {
-    searchQuery.value = String(value || '')
-  },
-  { immediate: true }
-)
 </script>
 
 <style scoped>
