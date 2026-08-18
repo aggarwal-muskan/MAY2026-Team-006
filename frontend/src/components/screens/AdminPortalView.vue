@@ -1265,6 +1265,9 @@ watch(tenantSearchQuery, () => {
 .toolbar { margin-bottom: var(--space-2); }
 .toolbar input { width: 100%; }
 .notice-row, .report-card { display: grid; gap: var(--space-3); }
+.notice-row {
+  padding: var(--space-5);
+}
 .row-actions { display: flex; gap: var(--space-2); }
 
 .emerging-issues-wrapper { margin-bottom: var(--space-4); }

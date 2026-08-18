@@ -546,6 +546,7 @@ async function handleForgotPassword() {
   border-color: var(--color-primary-100);
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
   transform: translateY(-1px);
+  outline: none;
 }
 
 .field-shell.error {
@@ -568,10 +569,19 @@ async function handleForgotPassword() {
   background: transparent;
   padding-inline: 0;
   box-shadow: none;
+  outline: none;
 }
 
-.auth-input:focus {
+.auth-input:focus,
+.auth-input:focus-visible {
   box-shadow: none;
+  outline: none;
+}
+
+.password-shell input[type='password']::-ms-reveal,
+.password-shell input[type='password']::-ms-clear,
+.password-shell input[type='password']::-webkit-textfield-decoration-container {
+  display: none;
 }
 
 .password-shell .auth-input {

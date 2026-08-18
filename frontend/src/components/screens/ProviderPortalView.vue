@@ -81,7 +81,8 @@
     <template v-else-if="page === 'profile'">
       <div class="content-grid two-col">
         <section class="card profile-card">
-          <div class="avatar avatar-xl">{{ userInitials }}</div>
+          <img v-if="currentProviderProfileImageUrl" :src="currentProviderProfileImageUrl" alt="Profile image" class="profile-image" />
+          <div v-else class="avatar avatar-xl">{{ userInitials }}</div>
           <h1>{{ providerName }}</h1>
           <p>{{ providerRoleText }}</p>
           <button class="btn btn-outline" @click="isEditingProfile = !isEditingProfile">{{ isEditingProfile ? 'Cancel' : 'Edit' }}</button>
@@ -96,6 +97,14 @@
             <label class="form-group"><span class="form-label">Full Name</span><input v-model="profileForm.full_name" type="text" /></label>
             <label class="form-group"><span class="form-label">Phone</span><input v-model="profileForm.phone" type="text" /></label>
             <label class="form-group"><span class="form-label">Email (read-only)</span><input v-model="profileForm.email" type="text" disabled /></label>
+            <label class="form-group">
+              <span class="form-label">Profile Image</span>
+              <input type="file" accept=".jpg,.jpeg,.png,.webp" @change="onProviderProfileImageSelected" />
+              <small class="muted">Allowed: jpg, jpeg, png, webp. Max size 5MB.</small>
+            </label>
+            <div v-if="providerProfileImagePreviewUrl" class="profile-preview-wrap">
+              <img :src="providerProfileImagePreviewUrl" alt="Selected profile preview" class="profile-preview" />
+            </div>
             <button class="btn btn-primary">Save Profile</button>
           </form>
         </section>
@@ -160,12 +169,22 @@ const isEditingProfile = ref(false)
 const serviceForm = ref({ business_name: '', service_description: '' })
 const slotForm = ref({ slot_start: '', slot_end: '' })
 const profileForm = ref({ full_name: '', phone: '', email: '' })
+const providerProfileImageFile = ref(null)
+const providerProfileImagePreviewUrl = ref('')
 
 const providerName = computed(() => authStore.user?.name || 'Service Provider')
 const userInitials = computed(() => authStore.userInitials || 'SP')
 const providerEmail = computed(() => authStore.user?.email || '-')
 const providerPhone = computed(() => authStore.user?.phone || '-')
 const providerRoleText = computed(() => (authStore.user?.category ? `${authStore.user.category} Provider` : 'Verified Provider'))
+const currentProviderProfileImageUrl = computed(() => {
+  if (providerProfileImagePreviewUrl.value) return providerProfileImagePreviewUrl.value
+  const raw = String(authStore.user?.profile_image_url || '').trim()
+  if (!raw) return ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('/')) return `${(import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api').replace(/\/$/, '').replace(/\/api$/, '')}${raw}`
+  return `${(import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api').replace(/\/$/, '').replace(/\/api$/, '')}/${raw}`
+})
 const globalSearchQuery = computed(() => String(route.query.q || '').trim().toLowerCase())
 
 const providerBookingsList = computed(() => {
@@ -366,13 +385,44 @@ async function loadProviderData() {
   }
 }
 
+function onProviderProfileImageSelected(event) {
+  const file = event?.target?.files?.[0]
+  if (!file) {
+    providerProfileImageFile.value = null
+    providerProfileImagePreviewUrl.value = ''
+    return
+  }
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    notify.error('Invalid file type. Please upload jpg, jpeg, png, or webp image.')
+    providerProfileImageFile.value = null
+    providerProfileImagePreviewUrl.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    notify.error('Image size exceeds 5MB limit.')
+    providerProfileImageFile.value = null
+    providerProfileImagePreviewUrl.value = ''
+    return
+  }
+
+  providerProfileImageFile.value = file
+  providerProfileImagePreviewUrl.value = URL.createObjectURL(file)
+}
+
 async function saveProviderProfile() {
   try {
     await authStore.updateMe({
       full_name: String(profileForm.value.full_name || '').trim(),
       phone: String(profileForm.value.phone || '').trim(),
     })
+    if (providerProfileImageFile.value) {
+      await authStore.uploadProfileImage(providerProfileImageFile.value)
+    }
     isEditingProfile.value = false
+    providerProfileImageFile.value = null
+    providerProfileImagePreviewUrl.value = ''
     notify.success('Profile updated successfully')
   } catch (error) {
     notify.error(error instanceof Error ? error.message : 'Unable to update profile')

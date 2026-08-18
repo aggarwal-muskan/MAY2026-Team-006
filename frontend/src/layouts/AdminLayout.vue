@@ -85,15 +85,6 @@
           </div>
         </div>
         <div class="topbar-right">
-          <div class="search-box">
-            <span class="search-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-              </svg>
-            </span>
-            <input type="text" placeholder="Search anything..." v-model="searchQuery" @keydown.enter.prevent="submitSearch" />
-          </div>
           <div class="topbar-user">
             <div class="avatar avatar-sm">A</div>
             <div class="user-meta hide-mobile">
@@ -123,7 +114,6 @@ const authStore = useAuthStore()
 
 const sidebarCollapsed = ref(false)
 const mobileOpen = ref(false)
-const searchQuery = ref('')
 const complaintBadgeCount = ref(0)
 
 function isActive(path) {
@@ -133,14 +123,6 @@ function isActive(path) {
 function handleLogout() {
   authStore.logout()
   router.push('/login')
-}
-
-function submitSearch() {
-  const trimmed = String(searchQuery.value || '').trim()
-  router.push({
-    path: route.path,
-    query: trimmed ? { ...route.query, q: trimmed } : { ...route.query, q: undefined },
-  })
 }
 
 async function loadAdminBadgeCounts() {
@@ -185,7 +167,6 @@ const sidebarItems = computed(() => [
     label: 'Management',
     items: [
       { label: 'Complaints', to: '/admin/complaints', icon: iconFile, badge: complaintBadgeCount.value },
-      { label: 'Amenities', to: '/admin/events', icon: iconCalendar },
       { label: 'Notices', to: '/admin/notices', icon: iconBell },
       { label: 'Events', to: '/admin/events', icon: iconCalendar },
     ]
@@ -220,13 +201,6 @@ watch(
   }
 )
 
-watch(
-  () => route.query.q,
-  (value) => {
-    searchQuery.value = String(value || '')
-  },
-  { immediate: true }
-)
 </script>
 
 <style scoped>
