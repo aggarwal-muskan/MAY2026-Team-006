@@ -175,8 +175,6 @@ const sidebarItems = computed(() => [
     label: 'Finance & Reports',
     items: [
       { label: 'Maintenance Fees', to: '/admin/maintenance-fees', icon: iconDollar },
-      { label: 'Analytics', to: '/admin/analytics', icon: iconChart },
-      { label: 'AI Tools', to: '/admin/ai-tools', icon: iconChart },
       { label: 'Reports & Export', to: '/admin/reports', icon: iconDownload },
     ]
   },

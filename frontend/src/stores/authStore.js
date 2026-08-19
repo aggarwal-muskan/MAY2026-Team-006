@@ -844,13 +844,7 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function aiAnalyticsInsights(stats = null) {
-    const payload = await authFetch('/ai/analytics/insights', {
-      method: 'POST',
-      body: JSON.stringify(stats ? { stats } : {}),
-    })
-    return payload?.data || null
-  }
+
 
   async function aiClassifyComplaint(complaintPayload) {
     const payload = await authFetch('/ai/complaints/classify', {
@@ -860,13 +854,7 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function aiMeetingMinutes(meetingPayload) {
-    const payload = await authFetch('/ai/meetings/minutes', {
-      method: 'POST',
-      body: JSON.stringify(meetingPayload || {}),
-    })
-    return payload?.data || null
-  }
+
 
   async function aiSummarizeAllNotices(notices = null) {
     const body = Array.isArray(notices) && notices.length ? { notices } : {}
@@ -877,13 +865,7 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || null
   }
 
-  async function aiMaintenanceAssist(assistPayload) {
-    const payload = await authFetch('/ai/maintenance/assist', {
-      method: 'POST',
-      body: JSON.stringify(assistPayload || {}),
-    })
-    return payload?.data || null
-  }
+
 
   return {
     user,
@@ -964,10 +946,7 @@ export const useAuthStore = defineStore('auth', () => {
     aiGenerateNotice,
     aiTranslateAnnouncement,
     aiPlanEvent,
-    aiAnalyticsInsights,
     aiClassifyComplaint,
-    aiMeetingMinutes,
     aiSummarizeAllNotices,
-    aiMaintenanceAssist,
   }
 })
