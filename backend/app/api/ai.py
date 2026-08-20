@@ -13,6 +13,15 @@ from app.services.gemini_service import GeminiServiceError, generate_json, gener
 
 ai_bp = Blueprint("ai", __name__, url_prefix="/ai")
 
+CHAT_SYSTEM = (
+    "You are SocioNeed AI Assistant, a helpful assistant for society and residential "
+    "management. Help with bookings, complaints, notices, services, and general "
+    "SocioNeed application guidance. Be concise, clear, and practical. Do not invent "
+    "application-specific facts, policies, fees, dates, or user data. If you do not "
+    "know something or it requires current society data, say so clearly and suggest "
+    "where the user can check."
+)
+
 
 def _ai_error(error: Exception):
     message = str(error) or "AI request failed"
@@ -26,6 +35,25 @@ def _require_text(data: dict, field: str, label: str | None = None) -> str:
     if not value:
         raise ValueError(f"{label or field} is required")
     return value
+
+
+@ai_bp.post("/chat")
+@jwt_required()
+def chat():
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return fail("Request body must be a JSON object", "VALIDATION_ERROR", 400)
+    try:
+        message = _require_text(data, "message", "message")
+        reply = generate_text(
+            f"User question:\n{message}\n\nAnswer the user directly.",
+            system=CHAT_SYSTEM,
+        )
+        return ok({"reply": reply}, "Chat response generated")
+    except ValueError as error:
+        return fail(str(error), "VALIDATION_ERROR", 400)
+    except GeminiServiceError as error:
+        return _ai_error(error)
 
 
 @ai_bp.get("/status")

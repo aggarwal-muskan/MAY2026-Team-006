@@ -41,6 +41,8 @@
 
     <!-- Fallback -->
     <router-view v-else />
+
+    <SocioNeedChatbot v-if="authStore.isAuthenticated" />
   </div>
 </template>
 
@@ -48,12 +50,15 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useAuthStore } from '@/stores/authStore'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import PortalLayout from '@/layouts/PortalLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
+import SocioNeedChatbot from '@/components/SocioNeedChatbot.vue'
 
 const route = useRoute()
 const notificationStore = useNotificationStore()
+const authStore = useAuthStore()
 
 const layout = computed(() => route.meta.layout || 'public')
 </script>
