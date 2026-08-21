@@ -410,6 +410,11 @@ const residentForm = reactive({ full_name: '', email: '', phone: '', password: '
 const providerForm = reactive({ full_name: '', email: '', phone: '', password: '', category_id: '', business_name: '', service_description: '' })
 const tenantForm = reactive({ full_name: '', email: '', phone: '', password: '', flat_number: '', leaseStart: '', leaseEnd: '', status: 'active' })
 const aiBusyKey = ref(null)
+const aiNoticeDraft = reactive({ topic: '', date: '', time: '', extra: '' })
+const noticeTranslations = ref(null)
+const allNoticesSummary = ref(null)
+const eventPlanDraft = reactive({ expected_residents: '', duration: '', budget: '' })
+const eventPlanResult = ref(null)
 const settingsForm = reactive({ maintenance_reminders: true, email_alerts: true, auto_approvals: false })
 
 function isAiBusy(key) {
