@@ -268,7 +268,7 @@
         <article v-for="notice in noticeRows" :key="`notice-${notice.id}`" class="card notice-row">
           <div>
             <strong>{{ notice.title }}</strong>
-            <p>{{ notice.body || notice.content }}</p>
+            <p class="notice-body-formatted">{{ formatNoticeBodyText(notice.body || notice.content) }}</p>
           </div>
           <div class="row-actions">
             <button class="btn btn-danger btn-sm" type="button" @click.stop="removeNotice(notice.id)">Delete</button>
@@ -341,10 +341,6 @@
       <div class="card table-wrap"><table class="data-table"><thead><tr><th>Role</th><th>Scope</th><th>Access</th></tr></thead><tbody><tr v-for="role in roles" :key="role.name"><td>{{ role.name }}</td><td>{{ role.scope }}</td><td>{{ role.access }}</td></tr></tbody></table></div>
     </template>
 
-    <template v-else-if="page === 'maintenance-fees'">
-      <div class="screen-header"><h1>Maintenance Fees</h1><p>Fee overview and recent payments.</p></div>
-      <div class="card table-wrap"><table class="data-table"><thead><tr><th>Month</th><th>Amount</th><th>Status</th></tr></thead><tbody><tr v-for="bill in maintenanceFeeRows" :key="bill.id"><td>{{ bill.month }}</td><td>{{ currency(bill.amount) }}</td><td><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span></td></tr><tr v-if="!maintenanceFeeRows.length"><td colspan="3">No maintenance bills found</td></tr></tbody></table></div>
-    </template>
 
     <template v-else-if="page === 'reports'">
       <div class="screen-header"><h1>Reports & Export</h1><p>Download operational summaries.</p></div>
@@ -414,6 +410,11 @@ const residentForm = reactive({ full_name: '', email: '', phone: '', password: '
 const providerForm = reactive({ full_name: '', email: '', phone: '', password: '', category_id: '', business_name: '', service_description: '' })
 const tenantForm = reactive({ full_name: '', email: '', phone: '', password: '', flat_number: '', leaseStart: '', leaseEnd: '', status: 'active' })
 const aiBusyKey = ref(null)
+const aiNoticeDraft = reactive({ topic: '', date: '', time: '', extra: '' })
+const noticeTranslations = ref(null)
+const allNoticesSummary = ref(null)
+const eventPlanDraft = reactive({ expected_residents: '', duration: '', budget: '' })
+const eventPlanResult = ref(null)
 const settingsForm = reactive({ maintenance_reminders: true, email_alerts: true, auto_approvals: false })
 
 function isAiBusy(key) {
@@ -488,12 +489,6 @@ const tenantRows = computed(() => {
   })
 })
 
-const maintenanceFeeRows = computed(() => backendMaintenanceBills.value.map((bill) => ({
-  id: bill.id,
-  month: bill.month_label,
-  amount: Number(bill.amount || 0),
-  status: String(bill.status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid',
-})))
 
 const systemLogRows = computed(() => backendSystemLogs.value.map((log) => ({
   id: log.id,
@@ -602,6 +597,44 @@ async function loadAllComplaints(searchTerm = '') {
   } while (page <= pages)
 
   return allItems
+}
+
+function formatNoticeBodyText(rawText) {
+  if (!rawText) return ''
+  let text = String(rawText).trim()
+
+  // Format English sections
+  text = text.replace(/^(Dear Residents,?\s*|Notice:?\s*|Greeting:?\s*)/gi, '$1\n\n')
+  text = text.replace(/([^\n])\s*(Date:\s*)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(Time:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(Location:\s*|Venue:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(All residents|Please note|Note:)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(Thank you[^\.\n]*[\.\!]?)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(Warm regards,?|Regards,?|Best regards,?)/gi, '$1\n\n$2')
+  text = text.replace(/(Warm regards,?|Regards,?|Best regards,?)\s*,?\s*([^\n]+)/gi, '$1\n$2')
+
+  // Format Telugu sections
+  text = text.replace(/^(గౌరవనీయ నివాసులకు,?\s*)/gi, '$1\n\n')
+  text = text.replace(/([^\n])\s*(తేదీ:\s*)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(సమయం:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(స్థలం:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(నివాసులందరూ)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(ధన్యవాదాలు[^\.\n]*[\.\!]?|మీ సహకారానికి ధన్యవాదాలు[^\.\n]*[\.\!]?)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(భవదీయులు,?|మేనేజ్‌మెంట్ కమిటీ)/gi, '$1\n\n$2')
+  text = text.replace(/(భవదీయులు,?)\s*,?\s*([^\n]+)/gi, '$1\n$2')
+
+  // Format Hindi sections
+  text = text.replace(/^(प्रिय निवासियों,?\s*)/gi, '$1\n\n')
+  text = text.replace(/([^\n])\s*(दिनांक:\s*)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(समय:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(स्थान:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(सभी निवासियों)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(धन्यवाद[^\.\n]*[\.\!]?|आपके सहयोग के लिए धन्यवाद[^\.\n]*[\.\!]?)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(सादर,?|प्रबंध समिति)/gi, '$1\n\n$2')
+  text = text.replace(/(सादर,?)\s*,?\s*([^\n]+)/gi, '$1\n$2')
+
+  text = text.replace(/\n{3,}/g, '\n\n')
+  return text
 }
 
 const adminAnalytics = computed(() => {
