@@ -1189,6 +1189,23 @@ def test_ai_status_lists_features(client, admin_token):
         assert f in features
 
 
+def test_chat_success(client, resident_token, fake_ai_14):
+    resp = client.post("/api/ai/chat", headers=_auth_14(resident_token),
+                       json={"message": "What is SocioNeed?"})
+    assert resp.status_code == 200
+    assert resp.get_json()["data"]["reply"] == "AI generated text."
+
+
+def test_chat_requires_message(client, resident_token, fake_ai_14):
+    resp = client.post("/api/ai/chat", headers=_auth_14(resident_token), json={})
+    assert resp.status_code == 400
+
+
+def test_chat_requires_auth(client, fake_ai_14):
+    resp = client.post("/api/ai/chat", json={"message": "What is SocioNeed?"})
+    assert resp.status_code == 401
+
+
 def test_notice_generate_success(client, admin_token, fake_ai_14):
     resp = client.post("/api/ai/notices/generate", headers=_auth_14(admin_token),
                        json={"topic": "Water tank cleaning", "date": "Sunday"})

@@ -820,6 +820,14 @@ export const useAuthStore = defineStore('auth', () => {
     return payload?.data || {}
   }
 
+  async function aiChat(message) {
+    const payload = await authFetch('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    })
+    return payload?.data?.reply || ''
+  }
+
   async function aiGenerateNotice(noticePayload) {
     const payload = await authFetch('/ai/notices/generate', {
       method: 'POST',
@@ -943,6 +951,7 @@ export const useAuthStore = defineStore('auth', () => {
     getMonthlyReport,
     exportMonthlyReportCsv,
     aiStatus,
+    aiChat,
     aiGenerateNotice,
     aiTranslateAnnouncement,
     aiPlanEvent,
