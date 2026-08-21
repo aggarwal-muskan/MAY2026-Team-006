@@ -31,5 +31,5 @@ h1 { font-size: var(--text-2xl); margin-bottom: var(--space-5); }
 .notice-header { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
 .notice-date { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-muted); }
 .notice-card h3 { font-size: var(--text-base); margin-bottom: var(--space-2); }
-.notice-card p { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: var(--leading-relaxed); }
+.notice-card p { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: var(--leading-relaxed); white-space: pre-line; }
 </style>

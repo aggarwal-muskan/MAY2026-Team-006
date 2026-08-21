@@ -100,7 +100,7 @@
             <strong>{{ notice.title }}</strong>
             <span class="badge" :class="badgeClass(notice.priority)">{{ notice.priority }}</span>
           </div>
-          <p>{{ noticeBodyText(notice) }}</p>
+          <p class="notice-body-formatted">{{ noticeBodyText(notice) }}</p>
           <small v-if="!noticeHasTranslation(notice)" class="muted">
             {{ noticeLanguageLabels[selectedNoticeLanguage] }} translation not available — showing original.
           </small>
@@ -116,7 +116,7 @@
           </div>
           <button class="btn btn-outline btn-sm" type="button" @click="selectedNotice = null">Close</button>
         </div>
-        <p>{{ noticeBodyText(selectedNotice) }}</p>
+        <p class="notice-body-formatted">{{ noticeBodyText(selectedNotice) }}</p>
       </section>
     </template>
 
@@ -421,25 +421,6 @@
       </div>
     </template>
 
-    <template v-else-if="page === 'maintenance-bills'">
-      <div class="screen-header">
-        <h1>Maintenance Bills</h1>
-        <p>Track monthly charges and payment status.</p>
-      </div>
-      <div class="stack">
-        <article v-for="bill in residentMaintenanceBills" :key="`bill-${bill.id}`" class="card bill-card">
-          <div>
-            <strong>{{ bill.month }}</strong>
-            <p>Due {{ bill.dueDate }}</p>
-            <ul v-if="bill.line_items?.length" class="bill-lines">
-              <li v-for="item in bill.line_items" :key="item.label">{{ item.label }}: {{ currency(item.amount) }}</li>
-            </ul>
-          </div>
-          <div class="bill-meta"><strong>{{ currency(bill.amount) }}</strong><span class="badge" :class="badgeClass(bill.status)">{{ bill.status }}</span><button v-if="String(bill.status).toLowerCase() !== 'paid'" class="btn btn-primary btn-sm" @click="payBill(bill.id)">Pay Now</button></div>
-        </article>
-        <article v-if="!residentMaintenanceBills.length" class="card bill-card">No maintenance bills available.</article>
-      </div>
-    </template>
 
     <template v-else-if="page === 'service-history'">
       <div class="screen-header">
@@ -578,7 +559,7 @@ const residentBookings = computed(() => {
 })
 
 const residentFamilyMembers = computed(() => backendFamilyMembers.value.map((member) => ({ id: member.id, name: member.full_name, relation: member.relation, phone: member.phone, age: member.age })))
-const residentMaintenanceBills = computed(() => backendMaintenanceBills.value.map((bill) => ({ id: bill.id, month: bill.month_label, dueDate: bill.due_date, amount: Number(bill.amount || 0), status: String(bill.status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid', line_items: [] })))
+
 
 const browseServiceCards = computed(() => {
   const list = authStore.token ? backendServiceCategories.value : mockServiceCategories
@@ -673,13 +654,56 @@ const availability = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const calendarDays = days(30)
 const timeSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00']
 
+function formatNoticeBodyText(rawText) {
+  if (!rawText) return ''
+  let text = String(rawText).trim()
+
+  // Format English sections
+  text = text.replace(/^(Dear Residents,?\s*|Notice:?\s*|Greeting:?\s*)/gi, '$1\n\n')
+  text = text.replace(/([^\n])\s*(Date:\s*)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(Time:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(Location:\s*|Venue:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(All residents|Please note|Note:)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(Thank you[^\.\n]*[\.\!]?)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(Warm regards,?|Regards,?|Best regards,?)/gi, '$1\n\n$2')
+  text = text.replace(/(Warm regards,?|Regards,?|Best regards,?)\s*,?\s*([^\n]+)/gi, '$1\n$2')
+
+  // Format Telugu sections
+  text = text.replace(/^(గౌరవనీయ నివాసులకు,?\s*)/gi, '$1\n\n')
+  text = text.replace(/([^\n])\s*(తేదీ:\s*)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(సమయం:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(స్థలం:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(నివాసులందరూ)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(ధన్యవాదాలు[^\.\n]*[\.\!]?|మీ సహకారానికి ధన్యవాదాలు[^\.\n]*[\.\!]?)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(భవదీయులు,?|మేనేజ్‌మెంట్ కమిటీ)/gi, '$1\n\n$2')
+  text = text.replace(/(భవదీయులు,?)\s*,?\s*([^\n]+)/gi, '$1\n$2')
+
+  // Format Hindi sections
+  text = text.replace(/^(प्रिय निवासियों,?\s*)/gi, '$1\n\n')
+  text = text.replace(/([^\n])\s*(दिनांक:\s*)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(समय:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(स्थान:\s*)/gi, '$1\n$2')
+  text = text.replace(/([^\n])\s*(सभी निवासियों)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(धन्यवाद[^\.\n]*[\.\!]?|आपके सहयोग के लिए धन्यवाद[^\.\n]*[\.\!]?)/gi, '$1\n\n$2')
+  text = text.replace(/([^\n])\s*(सादर,?|प्रबंध समिति)/gi, '$1\n\n$2')
+  text = text.replace(/(सादर,?)\s*,?\s*([^\n]+)/gi, '$1\n$2')
+
+  text = text.replace(/\n{3,}/g, '\n\n')
+  return text
+}
+
 function noticeBodyText(notice) {
+  if (!notice) return ''
   const lang = selectedNoticeLanguage.value
   const original = notice.content || notice.body || ''
-  if (lang === 'English') return original
-  const translations = notice.translations
-  if (translations && typeof translations === 'object' && translations[lang]) return translations[lang]
-  return original
+  let result = original
+  if (lang !== 'English') {
+    const translations = notice.translations
+    if (translations && typeof translations === 'object' && translations[lang]) {
+      result = translations[lang]
+    }
+  }
+  return formatNoticeBodyText(result)
 }
 
 function noticeHasTranslation(notice) {
@@ -1160,5 +1184,14 @@ watch(() => route.fullPath, () => {
 .dashboard-shell .detail-list,
 .dashboard-shell .stack {
   gap: var(--space-3);
+}
+
+.notice-body-formatted {
+  white-space: pre-line;
+  line-height: 1.65;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-primary, #1e293b);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 </style>

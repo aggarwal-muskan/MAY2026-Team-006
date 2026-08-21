@@ -61,7 +61,6 @@ const routes = [
   { path: '/resident/notifications', name: 'ResidentNotifications', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'notifications' } },
   { path: '/resident/profile', name: 'ResidentProfile', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'profile' } },
   { path: '/resident/help', name: 'ResidentHelp', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'help-support' } },
-  { path: '/resident/maintenance-bills', name: 'MaintenanceBills', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'maintenance-bills' } },
   { path: '/resident/service-history', name: 'ServiceHistory', component: ResidentScreen, meta: { layout: 'portal', role: 'resident', sidebar: 'resident', page: 'service-history' } },
 
   // ── Admin Routes ──
@@ -76,7 +75,6 @@ const routes = [
   { path: '/admin/events/create', name: 'CreateEvent', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'create-event' } },
   { path: '/admin/settings', name: 'AdminSettings', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'settings' } },
   { path: '/admin/roles', name: 'RolesPermissions', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'roles' } },
-  { path: '/admin/maintenance-fees', name: 'MaintenanceFees', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'maintenance-fees' } },
   { path: '/admin/reports', name: 'ReportsExport', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'reports' } },
   { path: '/admin/logs', name: 'SystemLogs', component: AdminScreen, meta: { layout: 'admin', role: 'admin', sidebar: 'admin', page: 'logs' } },
 
