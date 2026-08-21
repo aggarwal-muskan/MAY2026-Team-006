@@ -176,20 +176,20 @@
         </div>
       </div>
 
-      <div class="card toolbar row-between" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);">
-        <div class="row-actions toolbar-controls" style="display: flex; gap: var(--space-4); align-items: center;">
-          <label class="filter-label" style="display: flex; align-items: center; gap: var(--space-2); font-weight: 500;">
-            Filter Priority:
-            <select v-model="selectedPriorityFilter" class="form-select-sm" style="padding: 4px 8px; border-radius: 4px;">
+      <div class="card toolbar complaints-filter-toolbar">
+        <div class="filter-controls-group">
+          <label class="filter-label">
+            <span class="filter-label-text">Filter Priority:</span>
+            <select v-model="selectedPriorityFilter" class="form-select-sm">
               <option value="All">All Priorities</option>
               <option value="High">High / Urgent</option>
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
             </select>
           </label>
-          <label class="filter-label" style="display: flex; align-items: center; gap: var(--space-2); font-weight: 500;">
-            Sort By:
-            <select v-model="selectedSortOrder" class="form-select-sm" style="padding: 4px 8px; border-radius: 4px;">
+          <label class="filter-label">
+            <span class="filter-label-text">Sort By:</span>
+            <select v-model="selectedSortOrder" class="form-select-sm">
               <option value="priority-desc">AI Priority (High → Low)</option>
               <option value="id-desc">Latest First</option>
               <option value="status">Status</option>
@@ -329,23 +329,7 @@
       </form>
     </template>
 
-    <template v-else-if="page === 'analytics'">
-      <div class="screen-header row-between">
-        <div><h1>Analytics</h1><p>Usage, occupancy, and event trends.</p></div>
-        <button class="btn btn-secondary" :disabled="isAiBusy('analytics-insights')" @click="loadAnalyticsInsights">{{ isAiBusy('analytics-insights') ? 'Analyzing…' : 'AI Insights' }}</button>
-      </div>
-      <section v-if="analyticsInsight" class="card ai-panel">
-        <h3 class="card-title">AI Society Insights</h3>
-        <p>{{ analyticsInsight.insight }}</p>
-        <ul v-if="analyticsInsight.suggested_actions?.length">
-          <li v-for="(action, idx) in analyticsInsight.suggested_actions" :key="idx">{{ action }}</li>
-        </ul>
-      </section>
-      <div class="content-grid two-col">
-        <section class="card"><h3 class="card-title">Complaints</h3><div class="bar-chart"><div v-for="point in adminAnalytics.complaintsOverTime" :key="point.month" class="bar-item"><span class="bar" :style="{ height: `${point.count * 4}px` }"></span><small>{{ point.month }}</small></div></div></section>
-        <section class="card"><h3 class="card-title">Complaint Status</h3><div v-for="(value, key) in adminAnalytics.complaintsByStatus" :key="key" class="progress-row"><span>{{ key }}</span><div class="progress"><span :style="{ width: `${Math.min(value * 5, 100)}%` }"></span></div></div></section>
-      </div>
-    </template>
+
 
     <template v-else-if="page === 'settings'">
       <div class="screen-header"><h1>Admin Settings</h1><p>Basic administrative preferences.</p></div>
@@ -373,30 +357,7 @@
       <div class="card table-wrap"><table class="data-table"><thead><tr><th>Action</th><th>User</th><th>Timestamp</th><th>Details</th></tr></thead><tbody><tr v-for="log in systemLogRows" :key="log.id"><td>{{ log.action }}</td><td>{{ log.user }}</td><td>{{ log.timestamp }}</td><td>{{ log.details }}</td></tr><tr v-if="!systemLogRows.length"><td colspan="4">No system logs available</td></tr></tbody></table></div>
     </template>
 
-    <template v-else-if="page === 'ai-tools'">
-      <div class="screen-header">
-        <h1>AI Admin Tools</h1>
-        <p>Meeting minutes and maintenance assistant powered by Gemini.</p>
-      </div>
-      <div class="content-grid two-col align-start">
-        <section class="card form-card">
-          <h3 class="card-title">AI Meeting Minutes Generator</h3>
-          <label class="form-group"><span class="form-label">Meeting title</span><input v-model="meetingForm.title" type="text" placeholder="Monthly Committee Meeting" /></label>
-          <label class="form-group"><span class="form-label">Date</span><input v-model="meetingForm.date" type="date" /></label>
-          <label class="form-group"><span class="form-label">Notes / topics</span><textarea v-model="meetingForm.notes" rows="8" placeholder="1. Lift maintenance&#10;2. Parking allocation&#10;3. Security cameras"></textarea></label>
-          <button class="btn btn-secondary" :disabled="isAiBusy('meeting-minutes')" @click="generateMeetingMinutes">{{ isAiBusy('meeting-minutes') ? 'Generating…' : 'Generate Minutes' }}</button>
-          <pre v-if="meetingMinutesResult" class="ai-output">{{ meetingMinutesResult.minutes_markdown || JSON.stringify(meetingMinutesResult, null, 2) }}</pre>
-        </section>
-        <section class="card form-card">
-          <h3 class="card-title">AI Maintenance Assistant</h3>
-          <label class="form-group"><span class="form-label">Equipment</span><input v-model="maintenanceForm.equipment" type="text" placeholder="Generator / Swimming Pool / Lift" /></label>
-          <label class="form-group"><span class="form-label">Notes</span><input v-model="maintenanceForm.notes" type="text" placeholder="Serviced today" /></label>
-          <label class="form-group"><span class="form-label">Question</span><textarea v-model="maintenanceForm.query" rows="5" placeholder="What maintenance activities should be checked?"></textarea></label>
-          <button class="btn btn-secondary" :disabled="isAiBusy('maintenance-assist')" @click="runMaintenanceAssistant">{{ isAiBusy('maintenance-assist') ? 'Working…' : 'Ask AI Assistant' }}</button>
-          <pre v-if="maintenanceAssistResult" class="ai-output">{{ maintenanceAssistResult.assistant_markdown || JSON.stringify(maintenanceAssistResult, null, 2) }}</pre>
-        </section>
-      </div>
-    </template>
+
   </div>
 </template>
 
@@ -453,16 +414,6 @@ const residentForm = reactive({ full_name: '', email: '', phone: '', password: '
 const providerForm = reactive({ full_name: '', email: '', phone: '', password: '', category_id: '', business_name: '', service_description: '' })
 const tenantForm = reactive({ full_name: '', email: '', phone: '', password: '', flat_number: '', leaseStart: '', leaseEnd: '', status: 'active' })
 const aiBusyKey = ref(null)
-const analyticsInsight = ref(null)
-const noticeTranslations = ref(null)
-const allNoticesSummary = ref(null)
-const eventPlanResult = ref(null)
-const meetingMinutesResult = ref(null)
-const maintenanceAssistResult = ref(null)
-const aiNoticeDraft = reactive({ topic: '', date: '', time: '', extra: '' })
-const eventPlanDraft = reactive({ expected_residents: 200, budget: '₹50,000', duration: '4 hours' })
-const meetingForm = reactive({ title: 'Society Committee Meeting', date: '', notes: '' })
-const maintenanceForm = reactive({ equipment: '', notes: '', query: '' })
 const settingsForm = reactive({ maintenance_reminders: true, email_alerts: true, auto_approvals: false })
 
 function isAiBusy(key) {
@@ -1110,38 +1061,7 @@ async function planEventWithAI() {
   })
 }
 
-async function loadAnalyticsInsights() {
-  await withAi('analytics-insights', async () => {
-    analyticsInsight.value = await authStore.aiAnalyticsInsights()
-    notify.success('AI insights ready')
-  })
-}
 
-async function generateMeetingMinutes() {
-  await withAi('meeting-minutes', async () => {
-    if (!String(meetingForm.notes || '').trim()) {
-      notify.error('Paste meeting notes first')
-      return
-    }
-    meetingMinutesResult.value = await authStore.aiMeetingMinutes({
-      title: meetingForm.title,
-      date: meetingForm.date,
-      notes: meetingForm.notes,
-    })
-    notify.success('Meeting minutes generated')
-  })
-}
-
-async function runMaintenanceAssistant() {
-  await withAi('maintenance-assist', async () => {
-    maintenanceAssistResult.value = await authStore.aiMaintenanceAssist({
-      equipment: maintenanceForm.equipment,
-      notes: maintenanceForm.notes,
-      query: maintenanceForm.query,
-    })
-    notify.success('Maintenance guidance ready')
-  })
-}
 
 function priorityWeight(priority) {
   const p = String(priority || '').toLowerCase()
@@ -1476,5 +1396,43 @@ watch(tenantSearchQuery, () => {
 
 .dashboard-shell .switch-row:last-child {
   border-bottom: none;
+}
+
+.complaints-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: 14px 20px;
+}
+
+.filter-controls-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6, 24px);
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  font-weight: 500;
+  white-space: nowrap;
+  font-size: var(--text-sm, 0.875rem);
+}
+
+.filter-label-text {
+  white-space: nowrap;
+}
+
+.form-select-sm {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background-color: var(--color-surface, #ffffff);
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-primary, #1e293b);
 }
 </style>
